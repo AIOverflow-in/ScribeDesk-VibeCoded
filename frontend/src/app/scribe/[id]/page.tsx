@@ -1,0 +1,212 @@
+"use client";
+import { useEffect, useState } from "react";
+import { useParams, useRouter } from "next/navigation";
+import { AppShell } from "@/components/layout/AppShell";
+import { Button } from "@/components/ui/button";
+import { EncounterDetail } from "@/lib/types";
+import { getEncounterDetail } from "@/lib/api/encounters";
+import { ArrowLeft } from "lucide-react";
+import { format } from "date-fns";
+
+export default function EncounterDetailPage() {
+  const { id } = useParams<{ id: string }>();
+  const router = useRouter();
+  const [detail, setDetail] = useState<EncounterDetail | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    getEncounterDetail(id)
+      .then(setDetail)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, [id]);
+
+  if (loading) {
+    return (
+      <AppShell>
+        <div className="flex items-center justify-center h-full">
+          <div className="w-6 h-6 border-2 border-black border-t-transparent rounded-full animate-spin" />
+        </div>
+      </AppShell>
+    );
+  }
+
+  if (error || !detail) {
+    return (
+      <AppShell>
+        <div className="flex flex-col items-center justify-center h-full gap-3 text-gray-500">
+          <p>Could not load session.</p>
+          <Button variant="outline" size="sm" onClick={() => router.push("/scribe")}>Back</Button>
+        </div>
+      </AppShell>
+    );
+  }
+
+  const { encounter, summary, prescriptions, segments } = detail;
+
+  function formatTime(seconds: number): string {
+    const h = Math.floor(seconds / 3600);
+    const m = Math.floor((seconds % 3600) / 60);
+    const s = Math.floor(seconds % 60);
+    if (h > 0) return `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+    return `${m}:${String(s).padStart(2, "0")}`;
+  }
+
+  const vitalsItems = summary?.vitals
+    ? Object.entries(summary.vitals).filter(([, v]) => v !== null && v !== undefined)
+    : [];
+
+  const vitalsLabels: Record<string, string> = {
+    blood_pressure: "BP", heart_rate: "HR", temperature: "Temp",
+    spo2: "SpO2", weight: "Weight", height: "Height", respiratory_rate: "RR",
+  };
+
+  return (
+    <AppShell>
+      <div className="h-full flex flex-col">
+        {/* Header */}
+        <div className="px-4 py-3 border-b bg-white flex items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => router.push("/scribe")}
+            className="gap-1.5 text-gray-500 hover:text-black"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Sessions
+          </Button>
+          <div className="w-px h-5 bg-gray-200" />
+          <div>
+            <span className="font-semibold text-sm">{encounter.patient_name}</span>
+            {(encounter.patient_age || encounter.patient_gender) && (
+              <span className="text-xs text-gray-400 ml-2">
+                {[encounter.patient_age && `${encounter.patient_age}y`, encounter.patient_gender].filter(Boolean).join(" · ")}
+              </span>
+            )}
+          </div>
+          <div className="ml-auto text-xs text-gray-400">
+            {encounter.start_time && format(new Date(encounter.start_time), "MMM d, yyyy · h:mm a")}
+          </div>
+          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+            encounter.status === "FINISHED" ? "border-black text-black" : "border-black bg-black text-white"
+          }`}>
+            {encounter.status}
+          </span>
+        </div>
+
+        {/* Two-column layout */}
+        <div className="flex-1 overflow-hidden flex">
+          {/* Transcript */}
+          <div className="flex-1 flex flex-col p-6 overflow-y-auto border-r border-gray-100">
+            <h2 className="text-xs font-semibold text-gray-400 mb-4 uppercase tracking-widest">
+              Transcript
+            </h2>
+            {segments.length === 0 ? (
+              <p className="text-sm text-gray-400">No transcript recorded for this session.</p>
+            ) : (
+              <div>
+                {segments.map((seg) => (
+                  <div key={seg.id} className="flex gap-4 py-2.5 border-b border-gray-50 last:border-0">
+                    <span className="text-[11px] text-gray-400 font-mono shrink-0 mt-0.5 w-12 tabular-nums">
+                      {formatTime(seg.start_time)}
+                    </span>
+                    <p className="text-sm text-gray-800 leading-relaxed flex-1">{seg.text}</p>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Analysis */}
+          <div className="w-80 xl:w-96 flex flex-col overflow-y-auto p-6 gap-6">
+            {!summary ? (
+              <p className="text-sm text-gray-400">No AI analysis available for this session.</p>
+            ) : (
+              <>
+                {summary.chief_complaint && (
+                  <section>
+                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Chief Complaint</h3>
+                    <p className="text-sm text-gray-800">{summary.chief_complaint}</p>
+                  </section>
+                )}
+                {summary.history_of_present_illness && (
+                  <section>
+                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">History</h3>
+                    <p className="text-sm text-gray-800">{summary.history_of_present_illness}</p>
+                  </section>
+                )}
+                {summary.physical_examination && (
+                  <section>
+                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Examination</h3>
+                    <p className="text-sm text-gray-800">{summary.physical_examination}</p>
+                  </section>
+                )}
+                {summary.assessment && (
+                  <section>
+                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Assessment</h3>
+                    <p className="text-sm text-gray-800">{summary.assessment}</p>
+                  </section>
+                )}
+                {summary.plan && (
+                  <section>
+                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Plan</h3>
+                    <p className="text-sm text-gray-800">{summary.plan}</p>
+                  </section>
+                )}
+                {summary.diagnosis && summary.diagnosis.length > 0 && (
+                  <section>
+                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Diagnoses</h3>
+                    <div className="flex flex-wrap gap-1.5">
+                      {summary.diagnosis.map((d, i) => (
+                        <span key={i} className="px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-700">{d}</span>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {vitalsItems.length > 0 && (
+                  <section>
+                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Vitals</h3>
+                    <div className="grid grid-cols-3 gap-2">
+                      {vitalsItems.map(([key, val]) => (
+                        <div key={key} className="border border-gray-200 rounded-lg p-2 text-center">
+                          <p className="text-[10px] text-gray-400 uppercase">{vitalsLabels[key] || key}</p>
+                          <p className="text-sm font-semibold text-gray-900">{val as string}</p>
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+                {prescriptions.length > 0 && (
+                  <section>
+                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Medications</h3>
+                    <div className="space-y-2">
+                      {prescriptions.map((med, i) => (
+                        <div key={i} className="border border-gray-200 rounded-lg p-3">
+                          <div className="flex items-center justify-between gap-2">
+                            <p className="font-medium text-sm text-gray-900">{med.name}</p>
+                            {med.dosage && (
+                              <span className="text-xs border border-gray-200 px-1.5 py-0.5 rounded text-gray-500">{med.dosage}</span>
+                            )}
+                          </div>
+                          {(med.frequency || med.duration) && (
+                            <p className="text-xs text-gray-400 mt-1">
+                              {[med.frequency, med.duration].filter(Boolean).join(" · ")}
+                            </p>
+                          )}
+                          {med.instructions && (
+                            <p className="text-xs text-gray-500 mt-1">{med.instructions}</p>
+                          )}
+                        </div>
+                      ))}
+                    </div>
+                  </section>
+                )}
+              </>
+            )}
+          </div>
+        </div>
+      </div>
+    </AppShell>
+  );
+}
