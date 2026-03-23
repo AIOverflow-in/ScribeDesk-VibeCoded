@@ -1,0 +1,629 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>ARCHITECTURE.md</title>
+<meta http-equiv="Content-type" content="text/html;charset=UTF-8">
+
+<style>
+/* https://github.com/microsoft/vscode/blob/master/extensions/markdown-language-features/media/markdown.css */
+/*---------------------------------------------------------------------------------------------
+ *  Copyright (c) Microsoft Corporation. All rights reserved.
+ *  Licensed under the MIT License. See License.txt in the project root for license information.
+ *--------------------------------------------------------------------------------------------*/
+
+body {
+	font-family: var(--vscode-markdown-font-family, -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif);
+	font-size: var(--vscode-markdown-font-size, 14px);
+	padding: 0 26px;
+	line-height: var(--vscode-markdown-line-height, 22px);
+	word-wrap: break-word;
+}
+
+#code-csp-warning {
+	position: fixed;
+	top: 0;
+	right: 0;
+	color: white;
+	margin: 16px;
+	text-align: center;
+	font-size: 12px;
+	font-family: sans-serif;
+	background-color:#444444;
+	cursor: pointer;
+	padding: 6px;
+	box-shadow: 1px 1px 1px rgba(0,0,0,.25);
+}
+
+#code-csp-warning:hover {
+	text-decoration: none;
+	background-color:#007acc;
+	box-shadow: 2px 2px 2px rgba(0,0,0,.25);
+}
+
+body.scrollBeyondLastLine {
+	margin-bottom: calc(100vh - 22px);
+}
+
+body.showEditorSelection .code-line {
+	position: relative;
+}
+
+body.showEditorSelection .code-active-line:before,
+body.showEditorSelection .code-line:hover:before {
+	content: "";
+	display: block;
+	position: absolute;
+	top: 0;
+	left: -12px;
+	height: 100%;
+}
+
+body.showEditorSelection li.code-active-line:before,
+body.showEditorSelection li.code-line:hover:before {
+	left: -30px;
+}
+
+.vscode-light.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.15);
+}
+
+.vscode-light.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(0, 0, 0, 0.40);
+}
+
+.vscode-light.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-dark.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.4);
+}
+
+.vscode-dark.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 255, 255, 0.60);
+}
+
+.vscode-dark.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+.vscode-high-contrast.showEditorSelection .code-active-line:before {
+	border-left: 3px solid rgba(255, 160, 0, 0.7);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line:hover:before {
+	border-left: 3px solid rgba(255, 160, 0, 1);
+}
+
+.vscode-high-contrast.showEditorSelection .code-line .code-line:hover:before {
+	border-left: none;
+}
+
+img {
+	max-width: 100%;
+	max-height: 100%;
+}
+
+a {
+	text-decoration: none;
+}
+
+a:hover {
+	text-decoration: underline;
+}
+
+a:focus,
+input:focus,
+select:focus,
+textarea:focus {
+	outline: 1px solid -webkit-focus-ring-color;
+	outline-offset: -1px;
+}
+
+hr {
+	border: 0;
+	height: 2px;
+	border-bottom: 2px solid;
+}
+
+h1 {
+	padding-bottom: 0.3em;
+	line-height: 1.2;
+	border-bottom-width: 1px;
+	border-bottom-style: solid;
+}
+
+h1, h2, h3 {
+	font-weight: normal;
+}
+
+table {
+	border-collapse: collapse;
+}
+
+table > thead > tr > th {
+	text-align: left;
+	border-bottom: 1px solid;
+}
+
+table > thead > tr > th,
+table > thead > tr > td,
+table > tbody > tr > th,
+table > tbody > tr > td {
+	padding: 5px 10px;
+}
+
+table > tbody > tr + tr > td {
+	border-top: 1px solid;
+}
+
+blockquote {
+	margin: 0 7px 0 5px;
+	padding: 0 16px 0 10px;
+	border-left-width: 5px;
+	border-left-style: solid;
+}
+
+code {
+	font-family: Menlo, Monaco, Consolas, "Droid Sans Mono", "Courier New", monospace, "Droid Sans Fallback";
+	font-size: 1em;
+	line-height: 1.357em;
+}
+
+body.wordWrap pre {
+	white-space: pre-wrap;
+}
+
+pre:not(.hljs),
+pre.hljs code > div {
+	padding: 16px;
+	border-radius: 3px;
+	overflow: auto;
+}
+
+pre code {
+	color: var(--vscode-editor-foreground);
+	tab-size: 4;
+}
+
+/** Theming */
+
+.vscode-light pre {
+	background-color: rgba(220, 220, 220, 0.4);
+}
+
+.vscode-dark pre {
+	background-color: rgba(10, 10, 10, 0.4);
+}
+
+.vscode-high-contrast pre {
+	background-color: rgb(0, 0, 0);
+}
+
+.vscode-high-contrast h1 {
+	border-color: rgb(0, 0, 0);
+}
+
+.vscode-light table > thead > tr > th {
+	border-color: rgba(0, 0, 0, 0.69);
+}
+
+.vscode-dark table > thead > tr > th {
+	border-color: rgba(255, 255, 255, 0.69);
+}
+
+.vscode-light h1,
+.vscode-light hr,
+.vscode-light table > tbody > tr + tr > td {
+	border-color: rgba(0, 0, 0, 0.18);
+}
+
+.vscode-dark h1,
+.vscode-dark hr,
+.vscode-dark table > tbody > tr + tr > td {
+	border-color: rgba(255, 255, 255, 0.18);
+}
+
+</style>
+
+<style>
+/* Tomorrow Theme */
+/* http://jmblog.github.com/color-themes-for-google-code-highlightjs */
+/* Original theme - https://github.com/chriskempson/tomorrow-theme */
+
+/* Tomorrow Comment */
+.hljs-comment,
+.hljs-quote {
+	color: #8e908c;
+}
+
+/* Tomorrow Red */
+.hljs-variable,
+.hljs-template-variable,
+.hljs-tag,
+.hljs-name,
+.hljs-selector-id,
+.hljs-selector-class,
+.hljs-regexp,
+.hljs-deletion {
+	color: #c82829;
+}
+
+/* Tomorrow Orange */
+.hljs-number,
+.hljs-built_in,
+.hljs-builtin-name,
+.hljs-literal,
+.hljs-type,
+.hljs-params,
+.hljs-meta,
+.hljs-link {
+	color: #f5871f;
+}
+
+/* Tomorrow Yellow */
+.hljs-attribute {
+	color: #eab700;
+}
+
+/* Tomorrow Green */
+.hljs-string,
+.hljs-symbol,
+.hljs-bullet,
+.hljs-addition {
+	color: #718c00;
+}
+
+/* Tomorrow Blue */
+.hljs-title,
+.hljs-section {
+	color: #4271ae;
+}
+
+/* Tomorrow Purple */
+.hljs-keyword,
+.hljs-selector-tag {
+	color: #8959a8;
+}
+
+.hljs {
+	display: block;
+	overflow-x: auto;
+	color: #4d4d4c;
+	padding: 0.5em;
+}
+
+.hljs-emphasis {
+	font-style: italic;
+}
+
+.hljs-strong {
+	font-weight: bold;
+}
+</style>
+
+<style>
+/*
+ * Markdown PDF CSS
+ */
+
+ body {
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe WPC", "Segoe UI", "Ubuntu", "Droid Sans", sans-serif, "Meiryo";
+	padding: 0 12px;
+}
+
+pre {
+	background-color: #f8f8f8;
+	border: 1px solid #cccccc;
+	border-radius: 3px;
+	overflow-x: auto;
+	white-space: pre-wrap;
+	overflow-wrap: break-word;
+}
+
+pre:not(.hljs) {
+	padding: 23px;
+	line-height: 19px;
+}
+
+blockquote {
+	background: rgba(127, 127, 127, 0.1);
+	border-color: rgba(0, 122, 204, 0.5);
+}
+
+.emoji {
+	height: 1.4em;
+}
+
+code {
+	font-size: 14px;
+	line-height: 19px;
+}
+
+/* for inline code */
+:not(pre):not(.hljs) > code {
+	color: #C9AE75; /* Change the old color so it seems less like an error */
+	font-size: inherit;
+}
+
+/* Page Break : use <div class="page"/> to insert page break
+-------------------------------------------------------- */
+.page {
+	page-break-after: always;
+}
+
+</style>
+
+<script src="https://unpkg.com/mermaid/dist/mermaid.min.js"></script>
+</head>
+<body>
+  <script>
+    mermaid.initialize({
+      startOnLoad: true,
+      theme: document.body.classList.contains('vscode-dark') || document.body.classList.contains('vscode-high-contrast')
+          ? 'dark'
+          : 'default'
+    });
+  </script>
+<h1 id="sribe--backend-architecture">Sribe — Backend Architecture</h1>
+<p>How audio becomes a clinical summary, from mic to MongoDB.</p>
+<hr>
+<h2 id="the-big-picture">The Big Picture</h2>
+<pre class="hljs"><code><div>Doctor speaks
+     │
+     ▼
+Browser (MediaRecorder)
+     │  WebM/Opus audio chunks (~250ms each)
+     ▼
+FastAPI WebSocket  (/ws/session/{encounter_id})
+     │
+     ├──► Deepgram Cloud (real-time STT)
+     │         │
+     │         ├── interim transcript → browser (live display)
+     │         └── final transcript  → MongoDB + browser
+     │
+     └──► Every 30s: GPT-4o partial analysis → browser
+     │
+  [Doctor clicks Finish]
+     │
+     ▼
+GPT-4o (4 parallel calls)
+     │
+     ├── Clinical Summary (SOAP)
+     ├── Vitals extraction
+     ├── Prescription suggestions
+     └── Follow-up tasks
+          │
+          ▼
+     MongoDB  +  FINAL_ANALYSIS → browser
+</div></code></pre>
+<hr>
+<h2 id="phase-1--session-start">Phase 1 — Session Start</h2>
+<p>When the doctor selects a patient and clicks <strong>Start Recording</strong>:</p>
+<ol>
+<li><strong>Frontend</strong> calls <code>POST /encounters/start</code> → creates an <code>Encounter</code> document in MongoDB with status <code>ACTIVE</code>.</li>
+<li><strong>Frontend</strong> opens a WebSocket to <code>/ws/session/{encounter_id}?token=&lt;jwt&gt;</code>.</li>
+<li><strong>Backend</strong> authenticates the JWT from the query param (WebSocket can't send headers), looks up the doctor, and accepts the connection.</li>
+<li>An <code>AudioProcessor</code> instance is created for this encounter and <code>.start()</code> is called, which opens a WebSocket connection to Deepgram.</li>
+<li>Backend sends <code>CONNECTED</code> message back to the browser.</li>
+</ol>
+<hr>
+<h2 id="phase-2--live-audio-%E2%86%92-transcript">Phase 2 — Live Audio → Transcript</h2>
+<pre class="hljs"><code><div>Browser                    FastAPI                     Deepgram
+  │                           │                            │
+  │── binary audio chunk ────►│── forward chunk ──────────►│
+  │── binary audio chunk ────►│── forward chunk ──────────►│
+  │                           │◄── interim: &quot;blood press...&quot; │
+  │◄── TRANSCRIPT_INTERIM ────│                            │
+  │                           │◄── final: &quot;Blood pressure  │
+  │                           │    is 120 over 80.&quot;        │
+  │                           │    [save to MongoDB]       │
+  │◄── TRANSCRIPT_FINAL ──────│                            │
+</div></code></pre>
+<p><strong>Audio flow:</strong></p>
+<ul>
+<li>Browser <code>MediaRecorder</code> captures WebM/Opus audio in ~250ms chunks and sends them as binary WebSocket frames.</li>
+<li>FastAPI receives each chunk and puts it into an <code>asyncio.Queue</code>.</li>
+<li>A background task (<code>_proxy_audio</code>) drains the queue and forwards each chunk to Deepgram over a separate WebSocket.</li>
+<li>Deepgram returns two types of results:
+<ul>
+<li><strong>Interim</strong> — partial recognition, fires frequently while speaking. Sent to browser as <code>TRANSCRIPT_INTERIM</code> for the live &quot;listening...&quot; display. Not saved.</li>
+<li><strong>Final</strong> — confirmed utterance after 300ms of silence. Saved to MongoDB as a <code>TranscriptSegment</code> and sent to browser as <code>TRANSCRIPT_FINAL</code>.</li>
+</ul>
+</li>
+</ul>
+<p><strong>Deepgram config used:</strong></p>
+<pre class="hljs"><code><div>model: nova-2-medical   → medical vocabulary (drug names, conditions)
+diarize: true           → speaker detection
+punctuate: true         → auto punctuation
+interim_results: true   → word-by-word live display
+endpointing: 300        → 300ms silence = end of utterance
+smart_format: true      → formats numbers, dates, medications
+</div></code></pre>
+<p><strong>What gets saved per segment:</strong></p>
+<pre class="hljs"><code><div>TranscriptSegment(
+    encounter_id = <span class="hljs-string">"..."</span>,
+    speaker      = <span class="hljs-string">"SPEAKER_0"</span>,   <span class="hljs-comment"># from Deepgram diarization</span>
+    text         = <span class="hljs-string">"Blood pressure is 120 over 80."</span>,
+    start_time   = <span class="hljs-number">12.4</span>,          <span class="hljs-comment"># seconds from session start</span>
+    end_time     = <span class="hljs-number">15.1</span>,
+)
+</div></code></pre>
+<p>The <code>Encounter.transcript_text</code> field is also updated incrementally:</p>
+<pre class="hljs"><code><div>SPEAKER_0: How long have you had this pain?
+SPEAKER_1: About two days now, mostly around my belly button.
+SPEAKER_0: Any fever or nausea?
+</div></code></pre>
+<p>This accumulated text is what gets passed to GPT-4o later.</p>
+<hr>
+<h2 id="phase-3--partial-analysis-every-30s">Phase 3 — Partial Analysis (every 30s)</h2>
+<p>While recording, a background task (<code>_periodic_analysis</code>) wakes up every 30 seconds and sends the last 50 transcript segments to GPT-4o:</p>
+<pre class="hljs"><code><div>prompt: <span class="hljs-string">"Analyze this partial clinical transcript..."</span>
+
+response: {
+  <span class="hljs-string">"key_points"</span>: [<span class="hljs-string">"Patient reports 2-day abdominal pain"</span>],
+  <span class="hljs-string">"symptoms"</span>: [<span class="hljs-string">"periumbilical pain"</span>, <span class="hljs-string">"no fever"</span>],
+  <span class="hljs-string">"possible_diagnoses"</span>: [<span class="hljs-string">"gastritis"</span>, <span class="hljs-string">"indigestion"</span>],
+  <span class="hljs-string">"items_to_clarify"</span>: [<span class="hljs-string">"bowel movements"</span>, <span class="hljs-string">"onset after eating?"</span>]
+}
+</div></code></pre>
+<p>This is sent to the browser as <code>PARTIAL_ANALYSIS</code> and updates the Clinical Summary panel in real-time. It is <strong>not</strong> saved to MongoDB — it's a live hint for the doctor.</p>
+<p>The same analysis also triggers immediately when the doctor clicks <strong>Pause</strong>.</p>
+<hr>
+<h2 id="phase-4--finish--full-analysis">Phase 4 — Finish &amp; Full Analysis</h2>
+<p>When the doctor clicks <strong>Finish</strong>:</p>
+<ol>
+<li>Frontend sends <code>FINISH</code> control message over WebSocket.</li>
+<li>Frontend calls <code>POST /encounters/{id}/finish</code> → sets encounter status to <code>FINISHED</code>.</li>
+<li>Backend stops the Deepgram connection and drains remaining audio.</li>
+<li><code>run_full_analysis()</code> is launched as an async background task.</li>
+</ol>
+<p><strong>4 GPT-4o calls run in parallel</strong> (<code>asyncio.gather</code>) with a 90s timeout:</p>
+<pre class="hljs"><code><div>transcript_text
+      │
+      ├──► clinical_summary_prompt  →  SOAP note (chief complaint, HPI,
+      │                                exam, assessment, plan, diagnoses)
+      │
+      ├──► vitals_extraction_prompt →  BP, HR, Temp, Weight, Height, SpO2
+      │
+      ├──► prescription_prompt      →  medications (name, dosage,
+      │                                frequency, duration, instructions)
+      │
+      └──► task_extraction_prompt   →  follow-up tasks with due dates
+</div></code></pre>
+<p>Each result is saved to MongoDB independently:</p>
+<ul>
+<li><code>ClinicalSummary</code> document (with embedded <code>Vitals</code>)</li>
+<li><code>Prescription</code> document (with embedded <code>Medication</code> list)</li>
+<li>One <code>Task</code> document per extracted task</li>
+</ul>
+<p>Then <code>FINAL_ANALYSIS</code> is sent to the browser with all four results in a single payload. The browser updates the UI and disconnects from the WebSocket.</p>
+<hr>
+<h2 id="phase-5--loading-past-encounters">Phase 5 — Loading Past Encounters</h2>
+<p>When a doctor opens <code>/scribe/{id}</code>:</p>
+<p><code>GET /encounters/{id}/detail</code> fetches from MongoDB in one go:</p>
+<ul>
+<li>The <code>Encounter</code> document</li>
+<li>The <code>ClinicalSummary</code> (one per encounter)</li>
+<li>The <code>Prescription</code> (one per encounter)</li>
+<li>All <code>TranscriptSegments</code> sorted by <code>start_time</code></li>
+</ul>
+<p>Everything was already saved during the session — no re-analysis needed.</p>
+<hr>
+<h2 id="data-models-mongodb-collections">Data Models (MongoDB Collections)</h2>
+<table>
+<thead>
+<tr>
+<th>Collection</th>
+<th>Purpose</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td><code>encounters</code></td>
+<td>One per session. Holds status, <code>transcript_text</code>, start/end times.</td>
+</tr>
+<tr>
+<td><code>transcript_segments</code></td>
+<td>One row per Deepgram final utterance. Indexed by <code>encounter_id</code>.</td>
+</tr>
+<tr>
+<td><code>clinical_summaries</code></td>
+<td>SOAP summary + vitals. One per encounter.</td>
+</tr>
+<tr>
+<td><code>prescriptions</code></td>
+<td>Medication list. One per encounter.</td>
+</tr>
+<tr>
+<td><code>tasks</code></td>
+<td>Follow-up tasks extracted from transcript. Many per encounter.</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="websocket-message-reference">WebSocket Message Reference</h2>
+<table>
+<thead>
+<tr>
+<th>Direction</th>
+<th>Message type</th>
+<th>When</th>
+</tr>
+</thead>
+<tbody>
+<tr>
+<td>→ Browser</td>
+<td><code>CONNECTED</code></td>
+<td>Session accepted</td>
+</tr>
+<tr>
+<td>→ Browser</td>
+<td><code>TRANSCRIPT_INTERIM</code></td>
+<td>Word being spoken (not saved)</td>
+</tr>
+<tr>
+<td>→ Browser</td>
+<td><code>TRANSCRIPT_FINAL</code></td>
+<td>Utterance confirmed, saved to DB</td>
+</tr>
+<tr>
+<td>→ Browser</td>
+<td><code>PARTIAL_ANALYSIS</code></td>
+<td>Every 30s GPT-4o update</td>
+</tr>
+<tr>
+<td>→ Browser</td>
+<td><code>PROCESSING_STARTED</code></td>
+<td>Full analysis kicked off</td>
+</tr>
+<tr>
+<td>→ Browser</td>
+<td><code>FINISHING</code></td>
+<td>Acknowledged finish command</td>
+</tr>
+<tr>
+<td>→ Browser</td>
+<td><code>FINAL_ANALYSIS</code></td>
+<td>All 4 LLM results ready</td>
+</tr>
+<tr>
+<td>→ Browser</td>
+<td><code>ERROR</code></td>
+<td>Any failure</td>
+</tr>
+<tr>
+<td>← Browser</td>
+<td>binary bytes</td>
+<td>Audio chunk</td>
+</tr>
+<tr>
+<td>← Browser</td>
+<td><code>{&quot;type&quot;:&quot;PAUSE&quot;}</code></td>
+<td>Doctor paused</td>
+</tr>
+<tr>
+<td>← Browser</td>
+<td><code>{&quot;type&quot;:&quot;RESUME&quot;}</code></td>
+<td>Doctor resumed</td>
+</tr>
+<tr>
+<td>← Browser</td>
+<td><code>{&quot;type&quot;:&quot;FINISH&quot;}</code></td>
+<td>Doctor finished session</td>
+</tr>
+</tbody>
+</table>
+<hr>
+<h2 id="key-design-decisions">Key Design Decisions</h2>
+<p><strong>Why WebSocket for audio instead of HTTP uploads?</strong>
+Streaming over WebSocket gives sub-second transcript latency. HTTP batch uploads would mean waiting until the end to get any text.</p>
+<p><strong>Why Deepgram instead of Whisper?</strong>
+Deepgram processes audio in real-time and returns words as they're spoken. Whisper is batch-only — you send a complete audio file and wait. For a live scribe, real-time is essential.</p>
+<p><strong>Why 4 parallel LLM calls instead of one big prompt?</strong>
+Each task (summary, vitals, prescriptions, tasks) has a focused, structured output. A single prompt asking for everything at once tends to produce inconsistent JSON. Parallel calls are also faster (all 4 finish in ~20-30s total vs ~40-60s sequential) and any one failure doesn't block the others.</p>
+<p><strong>Why store <code>transcript_text</code> on the Encounter in addition to segments?</strong>
+Segments require a database query and a join to reconstruct. Having <code>transcript_text</code> directly on the Encounter lets the LLM pipeline read one document instead of fetching and sorting potentially hundreds of segments.</p>
+
+</body>
+</html>
