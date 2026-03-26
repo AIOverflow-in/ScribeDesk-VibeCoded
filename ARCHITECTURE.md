@@ -1,4 +1,4 @@
-# Sribe — Backend Architecture
+# Scribe — Backend Architecture
 
 How audio becomes a clinical summary, from mic to MongoDB.
 

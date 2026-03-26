@@ -8,6 +8,7 @@ from app.models.encounter import Encounter
 from app.services.deepgram_client import DeepgramConnection
 from app.services.llm_service import chat_completion, parse_json_response
 from app.services.prompts import partial_analysis_messages
+from app.config import settings
 
 logger = logging.getLogger(__name__)
 
@@ -189,7 +190,7 @@ class AudioProcessor:
         segments_snapshot = self.accumulated_segments[-50:]  # Last 50 utterances
         messages = partial_analysis_messages(segments_snapshot, self.specialization)
         try:
-            text = await chat_completion(messages, json_mode=True)
+            text = await chat_completion(messages, model=settings.openai_model_fast, json_mode=True)
             result = await parse_json_response(text)
             await self.ws_manager.send_json(self.encounter_id, {
                 "type": "PARTIAL_ANALYSIS",

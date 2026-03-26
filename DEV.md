@@ -12,7 +12,7 @@ Clinical AI Scribe MVP. Doctors record patient consultations and get real-time t
 | Frontend | Next.js 16 (App Router, TypeScript) |
 | Database | MongoDB 7 (Beanie ODM) |
 | Transcription | Deepgram `nova-2-medical` (real-time WebSocket) |
-| AI Analysis | OpenAI GPT-4o |
+| AI Analysis | OpenAI GPT-5.4 mini |
 | File Storage | MinIO (S3-compatible) |
 | Infrastructure | Docker Compose |
 
@@ -166,7 +166,7 @@ Browser (MediaRecorder)
 ## Project Structure
 
 ```
-Sribe/
+Scribe/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI entry point, lifespan, routers

@@ -1,63 +1,68 @@
 "use client";
 import { useState } from "react";
 import { useEncounterStore } from "@/lib/store/encounterStore";
-import { Medication } from "@/lib/types";
+import { useAuthStore } from "@/lib/store/authStore";
 import { Button } from "@/components/ui/button";
-import { Check } from "lucide-react";
+import { Loader2, Pill } from "lucide-react";
+import { generatePrescription } from "@/lib/api/encounters";
+import { PrescriptionPad } from "./PrescriptionPad";
+import { toast } from "sonner";
 
 export function PrescriptionPanel() {
-  const { prescriptions } = useEncounterStore();
-  const [approved, setApproved] = useState(false);
+  const { encounter, patient, prescriptions, setPrescriptions } = useEncounterStore();
+  const { user } = useAuthStore();
+  const [generating, setGenerating] = useState(false);
+
+  const handleGenerate = async () => {
+    if (!encounter) return;
+    setGenerating(true);
+    try {
+      const meds = await generatePrescription(encounter.id);
+      setPrescriptions(meds);
+      if (meds.length === 0) {
+        toast.info("No medications found in this encounter.");
+      }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to generate prescription");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   if (!prescriptions.length) {
     return (
-      <p className="text-sm text-gray-400">
-        Medication suggestions will appear after the session is finished.
-      </p>
+      <div className="space-y-3">
+        <p className="text-sm text-gray-400">
+          Review the clinical notes above, then generate medication suggestions.
+        </p>
+        <Button
+          size="sm"
+          variant="outline"
+          className="w-full gap-2"
+          onClick={handleGenerate}
+          disabled={generating}
+        >
+          {generating ? (
+            <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</>
+          ) : (
+            <><Pill className="w-4 h-4" /> Generate Prescription</>
+          )}
+        </Button>
+      </div>
     );
   }
 
   return (
-    <div className="space-y-2">
-      {prescriptions.map((med, i) => (
-        <MedicationRow key={i} med={med} />
-      ))}
-      {!approved ? (
-        <Button
-          size="sm"
-          className="w-full gap-2 mt-2 bg-black text-white hover:bg-gray-800"
-          onClick={() => setApproved(true)}
-        >
-          <Check className="w-4 h-4" />
-          Approve Prescription
-        </Button>
-      ) : (
-        <div className="flex items-center gap-2 text-sm text-gray-700 font-medium">
-          <Check className="w-4 h-4" />
-          Prescription Approved
-        </div>
-      )}
-    </div>
-  );
-}
-
-function MedicationRow({ med }: { med: Medication }) {
-  return (
-    <div className="p-3 border border-gray-200 rounded-lg">
-      <div className="flex items-center justify-between gap-2">
-        <p className="font-medium text-sm text-gray-900">{med.name}</p>
-        {med.dosage && (
-          <span className="text-xs border border-gray-200 px-1.5 py-0.5 rounded text-gray-500">{med.dosage}</span>
-        )}
-      </div>
-      {(med.frequency || med.duration) && (
-        <p className="text-xs text-gray-400 mt-1">
-          {[med.frequency, med.duration].filter(Boolean).join(" · ")}
-        </p>
-      )}
-      {med.instructions && (
-        <p className="text-xs text-gray-500 mt-1">{med.instructions}</p>
-      )}
-    </div>
+    <PrescriptionPad
+      medications={prescriptions}
+      doctorName={user?.name ?? ""}
+      doctorSpecialization={user?.specialization}
+      patientName={patient?.name ?? ""}
+      patientAge={patient?.age}
+      patientGender={patient?.gender}
+      date={encounter?.start_time}
+      onRegenerate={handleGenerate}
+      regenerating={generating}
+    />
   );
 }

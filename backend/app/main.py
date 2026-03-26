@@ -12,8 +12,10 @@ async def lifespan(app: FastAPI):
     # Seed data
     from scripts.seed_templates import seed as seed_templates
     from scripts.seed_admin import seed as seed_admin
+    from scripts.seed_demo_data import seed as seed_demo_data
     await seed_templates()
     await seed_admin()
+    await seed_demo_data()
     yield
     # Shutdown
     await close_db()

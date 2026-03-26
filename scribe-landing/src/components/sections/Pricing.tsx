@@ -141,7 +141,7 @@ export default function Pricing() {
                 <span className="text-sm text-black/40 ml-3">Custom volumes, integrations, and SLAs for hospitals and large practices.</span>
               </div>
               <a
-                href="mailto:hello@sribe.ai"
+                href="mailto:hello@scribe.ai"
                 className="text-xs text-black/50 hover:text-black underline underline-offset-4 transition-colors flex-shrink-0"
               >
                 Contact us

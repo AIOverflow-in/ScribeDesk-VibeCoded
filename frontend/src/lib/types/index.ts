@@ -27,6 +27,23 @@ export interface Encounter {
   start_time?: string;
   end_time?: string;
   transcript_text: string;
+  template_id?: string;
+  created_at: string;
+}
+
+export interface PatientEncounterSummary {
+  id: string;
+  status: string;
+  start_time?: string;
+  end_time?: string;
+  template_name?: string;
+  summary: {
+    chief_complaint?: string;
+    assessment?: string;
+    plan?: string;
+    diagnosis: string[];
+  } | null;
+  medications: Array<{ name: string; dosage: string; frequency: string }>;
   created_at: string;
 }
 
@@ -121,10 +138,7 @@ export interface FinalAnalysis {
   summary?: ClinicalSummary;
   vitals?: Vitals;
   prescriptions: Medication[];
-  tasks: Array<{ title: string; description?: string; due_in_days?: number }>;
   summary_id?: string;
-  prescription_id?: string;
-  task_ids: string[];
 }
 
 // WebSocket message types

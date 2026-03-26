@@ -24,12 +24,13 @@ async def get_encounter(encounter_id: str, doctor_id: PydanticObjectId) -> Encou
     return encounter
 
 
-async def start_encounter(doctor_id: PydanticObjectId, patient_id: str) -> Encounter:
+async def start_encounter(doctor_id: PydanticObjectId, patient_id: str, template_id: str | None = None) -> Encounter:
     encounter = Encounter(
         doctor_id=doctor_id,
         patient_id=PydanticObjectId(patient_id),
         status="ACTIVE",
         start_time=datetime.utcnow(),
+        template_id=PydanticObjectId(template_id) if template_id else None,
     )
     await encounter.insert()
     return encounter

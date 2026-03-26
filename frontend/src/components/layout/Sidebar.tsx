@@ -3,7 +3,7 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { cn } from "@/lib/utils";
 import {
-  Mic2, CheckSquare, FileText, LayoutDashboard, Settings, LogOut, ShieldCheck
+  Mic2, FileText, LayoutDashboard, Settings, LogOut, ShieldCheck, Users
 } from "lucide-react";
 import { useAuthStore } from "@/lib/store/authStore";
 import { useRouter } from "next/navigation";
@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 const navItems = [
   { href: "/scribe",    icon: Mic2,            label: "Scribe",     role: null },
   { href: "/dashboard", icon: LayoutDashboard,  label: "Dashboard",  role: null },
-  { href: "/tasks",     icon: CheckSquare,      label: "Tasks",      role: null },
+  { href: "/patients",  icon: Users,           label: "Patients",   role: null },
   { href: "/templates", icon: FileText,         label: "Templates",  role: null },
   { href: "/settings",  icon: Settings,         label: "Settings",   role: null },
   { href: "/admin/doctors", icon: ShieldCheck,  label: "Admin",      role: "SUPER_ADMIN" },

@@ -26,7 +26,9 @@ export function PatientSearch() {
       const data = await searchPatients(q);
       setResults(data);
       setShowDropdown(true);
-    } catch { /* silent */ }
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Search failed");
+    }
   }, []);
 
   useEffect(() => {
@@ -170,9 +172,9 @@ export function PatientSearch() {
                 onChange={(e) => setCreateForm((f) => ({ ...f, gender: e.target.value }))}
               >
                 <option value="">Select...</option>
-                <option value="Male">Male</option>
-                <option value="Female">Female</option>
-                <option value="Other">Other</option>
+                <option value="male">Male</option>
+                <option value="female">Female</option>
+                <option value="other">Other</option>
               </select>
             </div>
             <div className="flex gap-2 pt-2">

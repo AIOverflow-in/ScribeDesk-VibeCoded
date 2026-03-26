@@ -1,6 +1,8 @@
+import re
 from fastapi import APIRouter, Depends, Query
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
+from beanie.odm.fields import PydanticObjectId
 from app.schemas.doctor import CreateDoctorRequest, UpdateDoctorRequest, DoctorStatusRequest, ResetPasswordRequest
 from app.models.doctor import Doctor
 from app.models.encounter import Encounter
@@ -55,7 +57,6 @@ async def list_doctors(
     search: Optional[str] = Query(None),
     _: Doctor = Depends(admin_guard),
 ):
-    import re
     query = Doctor.find(Doctor.role == "DOCTOR")
     if search:
         pattern = re.compile(search, re.IGNORECASE)
@@ -67,7 +68,6 @@ async def list_doctors(
 
 @router.get("/doctors/{doctor_id}", response_model=dict)
 async def get_doctor(doctor_id: str, _: Doctor = Depends(admin_guard)):
-    from beanie.odm.fields import PydanticObjectId
     doctor = await Doctor.get(PydanticObjectId(doctor_id))
     if not doctor:
         raise NotFoundError("Doctor not found")
@@ -80,7 +80,6 @@ async def update_doctor(
     body: UpdateDoctorRequest,
     _: Doctor = Depends(admin_guard),
 ):
-    from beanie.odm.fields import PydanticObjectId
     doctor = await Doctor.get(PydanticObjectId(doctor_id))
     if not doctor:
         raise NotFoundError("Doctor not found")
@@ -90,7 +89,7 @@ async def update_doctor(
         doctor.phone = body.phone
     if body.specialization:
         doctor.specialization = body.specialization
-    doctor.updated_at = datetime.utcnow()
+    doctor.updated_at = datetime.now(timezone.utc)
     await doctor.save()
     return _doc_dict(doctor)
 
@@ -101,12 +100,11 @@ async def set_doctor_status(
     body: DoctorStatusRequest,
     _: Doctor = Depends(admin_guard),
 ):
-    from beanie.odm.fields import PydanticObjectId
     doctor = await Doctor.get(PydanticObjectId(doctor_id))
     if not doctor:
         raise NotFoundError("Doctor not found")
     doctor.is_active = body.is_active
-    doctor.updated_at = datetime.utcnow()
+    doctor.updated_at = datetime.now(timezone.utc)
     await doctor.save()
     return {"id": str(doctor.id), "is_active": doctor.is_active}
 
@@ -117,19 +115,17 @@ async def reset_password(
     body: ResetPasswordRequest,
     _: Doctor = Depends(admin_guard),
 ):
-    from beanie.odm.fields import PydanticObjectId
     doctor = await Doctor.get(PydanticObjectId(doctor_id))
     if not doctor:
         raise NotFoundError("Doctor not found")
     doctor.password_hash = hash_password(body.new_password)
-    doctor.updated_at = datetime.utcnow()
+    doctor.updated_at = datetime.now(timezone.utc)
     await doctor.save()
     return {"message": "Password reset successfully"}
 
 
 @router.get("/doctors/{doctor_id}/metrics")
 async def doctor_metrics(doctor_id: str, _: Doctor = Depends(admin_guard)):
-    from beanie.odm.fields import PydanticObjectId
     did = PydanticObjectId(doctor_id)
     total_patients = await Patient.find(Patient.doctor_id == did).count()
     total_encounters = await Encounter.find(Encounter.doctor_id == did).count()

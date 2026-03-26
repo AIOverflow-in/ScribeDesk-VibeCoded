@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Task } from "@/lib/types";
 import { listTasks, createTask, updateTask, deleteTask } from "@/lib/api/tasks";
-import { Plus, Trash2, Check } from "lucide-react";
+import { Plus, Trash2, Check, CheckSquare } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
 
@@ -164,11 +164,3 @@ export default function TasksPage() {
   );
 }
 
-function CheckSquare({ className }: { className?: string }) {
-  return (
-    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor">
-      <rect x="3" y="3" width="18" height="18" rx="2" strokeWidth={2} />
-      <path d="M9 12l2 2 4-4" strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
-}

@@ -1,10 +1,40 @@
 "use client";
+import { useState, useEffect } from "react";
 import { useEncounterStore } from "@/lib/store/encounterStore";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Separator } from "@/components/ui/separator";
+import { Button } from "@/components/ui/button";
+import { Loader2, RefreshCw } from "lucide-react";
+import { regenerateSummary } from "@/lib/api/encounters";
+import { listTemplates } from "@/lib/api/templates";
+import { Template } from "@/lib/types";
+import { toast } from "sonner";
 
 export function ClinicalSummaryPanel() {
-  const { summary, vitals, partialAnalysis, isProcessing } = useEncounterStore();
+  const { summary, vitals, partialAnalysis, isProcessing, encounter, setSummary } = useEncounterStore();
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [selectedTemplateId, setSelectedTemplateId] = useState("");
+  const [regenerating, setRegenerating] = useState(false);
+
+  useEffect(() => {
+    if (summary) {
+      listTemplates().then(setTemplates).catch(() => {});
+    }
+  }, [!!summary]);
+
+  const handleRegenerate = async () => {
+    if (!encounter) return;
+    setRegenerating(true);
+    try {
+      const newSummary = await regenerateSummary(encounter.id, selectedTemplateId || undefined);
+      setSummary(newSummary);
+      toast.success("Summary regenerated.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to regenerate summary");
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   if (isProcessing && !summary) {
     return (
@@ -21,45 +51,93 @@ export function ClinicalSummaryPanel() {
   if (summary) {
     return (
       <div className="space-y-4 text-sm">
-        {summary.chief_complaint && (
-          <div>
-            <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-1">Chief Complaint</p>
-            <p className="text-gray-800">{summary.chief_complaint}</p>
+        {/* Regenerate toolbar — always visible at top when summary exists */}
+        <div className="flex items-center gap-2 pb-1">
+          <select
+            className="flex-1 text-xs border border-gray-200 rounded-md px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300"
+            value={selectedTemplateId}
+            onChange={(e) => setSelectedTemplateId(e.target.value)}
+            disabled={regenerating}
+          >
+            <option value="">Default SOAP</option>
+            {templates.map((t) => (
+              <option key={t.id} value={t.id}>{t.name}</option>
+            ))}
+          </select>
+          <Button
+            size="sm"
+            variant="outline"
+            className="gap-1.5 text-xs shrink-0"
+            onClick={handleRegenerate}
+            disabled={regenerating}
+          >
+            {regenerating
+              ? <><Loader2 className="w-3 h-3 animate-spin" /> Regenerating...</>
+              : <><RefreshCw className="w-3 h-3" /> Regenerate</>
+            }
+          </Button>
+        </div>
+
+        <Separator />
+
+        {/* Summary content — skeleton while regenerating */}
+        {regenerating ? (
+          <div className="space-y-3">
+            <Skeleton className="h-4 w-3/4" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-2/3" />
+            <Skeleton className="h-4 w-full" />
+            <Skeleton className="h-4 w-1/2" />
           </div>
-        )}
-        {summary.history_of_present_illness && (
-          <div>
-            <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-1">History</p>
-            <p className="text-gray-800">{summary.history_of_present_illness}</p>
+        ) : (
+          <div className="space-y-4">
+            {summary.chief_complaint && (
+              <div>
+                <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-1">Chief Complaint</p>
+                <p className="text-gray-800">{summary.chief_complaint}</p>
+              </div>
+            )}
+            {summary.history_of_present_illness && (
+              <div>
+                <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-1">History</p>
+                <p className="text-gray-800">{summary.history_of_present_illness}</p>
+              </div>
+            )}
+            {summary.physical_examination && (
+              <div>
+                <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-1">Examination</p>
+                <p className="text-gray-800">{summary.physical_examination}</p>
+              </div>
+            )}
+            {summary.assessment && (
+              <div>
+                <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-1">Assessment</p>
+                <p className="text-gray-800">{summary.assessment}</p>
+              </div>
+            )}
+            {summary.plan && (
+              <div>
+                <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-1">Plan</p>
+                <p className="text-gray-800">{summary.plan}</p>
+              </div>
+            )}
+            {summary.diagnosis && summary.diagnosis.length > 0 && (
+              <div>
+                <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-2">Diagnoses</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {summary.diagnosis.map((d, i) => (
+                    <span key={i} className="px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-700">{d}</span>
+                  ))}
+                </div>
+              </div>
+            )}
+            {vitals && (
+              <>
+                <Separator />
+                <VitalsGrid />
+              </>
+            )}
           </div>
-        )}
-        {summary.assessment && (
-          <div>
-            <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-1">Assessment</p>
-            <p className="text-gray-800">{summary.assessment}</p>
-          </div>
-        )}
-        {summary.plan && (
-          <div>
-            <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-1">Plan</p>
-            <p className="text-gray-800">{summary.plan}</p>
-          </div>
-        )}
-        {summary.diagnosis && summary.diagnosis.length > 0 && (
-          <div>
-            <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium mb-2">Diagnoses</p>
-            <div className="flex flex-wrap gap-1.5">
-              {summary.diagnosis.map((d, i) => (
-                <span key={i} className="px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-700">{d}</span>
-              ))}
-            </div>
-          </div>
-        )}
-        {vitals && (
-          <>
-            <Separator />
-            <VitalsGrid />
-          </>
         )}
       </div>
     );

@@ -1,5 +1,5 @@
 import hashlib
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 from app.models.doctor import Doctor
 from app.models.refresh_token import RefreshToken
@@ -43,6 +43,9 @@ async def login(email: str, password: str) -> dict:
             "name": doctor.name,
             "email": doctor.email,
             "role": doctor.role,
+            "phone": doctor.phone,
+            "specialization": doctor.specialization,
+            "signature_url": getattr(doctor, "signature_url", None),
         }
     }
 
@@ -57,7 +60,7 @@ async def refresh_access_token(refresh_token: str) -> dict:
         RefreshToken.token_hash == token_hash,
         RefreshToken.revoked == False,
     )
-    if not stored or stored.expires_at < datetime.utcnow():
+    if not stored or stored.expires_at < datetime.now(timezone.utc):
         raise UnauthorizedError("Refresh token expired or revoked")
 
     doctor = await Doctor.get(stored.user_id)

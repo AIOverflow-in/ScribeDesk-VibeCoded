@@ -24,10 +24,20 @@ Output JSON with this exact structure:
     ]
 
 
-def clinical_summary_messages(transcript: str, specialization: str = "General Physician") -> list[dict]:
+def clinical_summary_messages(transcript: str, specialization: str = "General Physician", template_content: str | None = None) -> list[dict]:
+    if template_content:
+        format_instruction = f"""Format the note using the following template structure as a guide:
+
+TEMPLATE:
+{template_content}
+
+Fill in each section of the template with the relevant clinical information from the transcript."""
+    else:
+        format_instruction = "Generate a structured SOAP clinical summary."
+
     return [
         {"role": "system", "content": SYSTEM_BASE + f"\nDoctor specialization: {specialization}"},
-        {"role": "user", "content": f"""Generate a structured SOAP clinical summary from this encounter transcript.
+        {"role": "user", "content": f"""{format_instruction}
 
 TRANSCRIPT:
 {transcript}
@@ -69,7 +79,7 @@ Output JSON with this exact structure (use null for any vital not mentioned):
 def prescription_messages(transcript: str, summary: str) -> list[dict]:
     return [
         {"role": "system", "content": SYSTEM_BASE},
-        {"role": "user", "content": f"""Extract medications mentioned or prescribed in this clinical encounter.
+        {"role": "user", "content": f"""Extract medications that were prescribed or discussed in this clinical encounter.
 
 CLINICAL SUMMARY:
 {summary}
@@ -77,15 +87,24 @@ CLINICAL SUMMARY:
 TRANSCRIPT:
 {transcript}
 
+Rules:
+- Only include medications explicitly mentioned or strongly indicated in the encounter.
+- For "name": include the drug name with form if stated (e.g. "Amoxicillin 500mg capsule", "Ibuprofen 400mg tablet").
+- For "dosage": the strength or dose (e.g. "500mg", "10mg/5ml"). Use empty string "" if not mentioned.
+- For "frequency": how often taken (e.g. "Twice daily", "Every 8 hours", "Once at bedtime"). Use empty string "" if not mentioned.
+- For "duration": how long to take it (e.g. "7 days", "2 weeks", "Ongoing"). Use empty string "" if not mentioned.
+- For "instructions": special instructions (e.g. "Take with food", "Avoid alcohol"). Use null if none.
+- IMPORTANT: Never output the word "null" for dosage, frequency, or duration — use empty string "" instead.
+
 Output JSON with this exact structure:
 {{
   "medications": [
     {{
       "name": "string",
-      "dosage": "string",
-      "frequency": "string",
-      "duration": "string",
-      "instructions": "string or null",
+      "dosage": "",
+      "frequency": "",
+      "duration": "",
+      "instructions": null,
       "is_suggested": true
     }}
   ]
@@ -170,6 +189,7 @@ def chat_messages(
     prescriptions: str,
     past_summaries: str,
     question: str,
+    history: list[dict] | None = None,
 ) -> list[dict]:
     context = f"""PATIENT INFORMATION:
 {patient_info}
@@ -186,9 +206,19 @@ CURRENT PRESCRIPTIONS:
 PAST ENCOUNTER SUMMARIES:
 {past_summaries}"""
 
-    return [
-        {"role": "system", "content": f"""{SYSTEM_BASE}
-You are reviewing a patient's clinical encounter. Answer the doctor's questions based strictly on the provided context.
-If information is not in the context, clearly say so. Be concise and clinically accurate."""},
-        {"role": "user", "content": f"CONTEXT:\n{context}\n\nDOCTOR'S QUESTION:\n{question}"},
-    ]
+    system_msg = {
+        "role": "system",
+        "content": (
+            "You are a clinical AI assistant helping a doctor during a patient consultation. "
+            "Answer the doctor's questions based strictly on the provided context. "
+            "If information is not in the context, clearly say so. "
+            "Be concise and clinically accurate. Respond in plain text — do not use JSON.\n\n"
+            f"CONTEXT:\n{context}"
+        ),
+    }
+
+    messages = [system_msg]
+    if history:
+        messages.extend(history)
+    messages.append({"role": "user", "content": question})
+    return messages

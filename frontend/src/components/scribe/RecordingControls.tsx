@@ -16,7 +16,11 @@ function formatElapsed(seconds: number): string {
   return `${m}:${String(s).padStart(2, "0")}`;
 }
 
-export function RecordingControls() {
+interface RecordingControlsProps {
+  templateId?: string;
+}
+
+export function RecordingControls({ templateId }: RecordingControlsProps = {}) {
   const {
     patient, encounter, setEncounter, setConnected,
     addSegment, setInterim, setPartialAnalysis, applyFinalAnalysis, setProcessing,
@@ -76,7 +80,7 @@ export function RecordingControls() {
   const startRecording = async () => {
     if (!patient) return;
     try {
-      const enc = await encounterApi.startEncounter(patient.id);
+      const enc = await encounterApi.startEncounter(patient.id, templateId);
       setEncounter(enc);
       startTimeRef.current = Date.now();
       setElapsed(0);
@@ -102,8 +106,28 @@ export function RecordingControls() {
 
   const resumeRecording = async () => {
     if (!encounter) return;
-    recorderRef.current?.resume();
-    wsRef.current?.sendControl("RESUME");
+
+    // Refs are gone (navigated away and came back) — do a full reconnect
+    if (!wsRef.current || !recorderRef.current) {
+      try {
+        startTimeRef.current = Date.now();
+        setElapsed(0);
+        const recorder = new AudioRecorder((chunk) => wsRef.current?.sendAudio(chunk));
+        recorderRef.current = recorder;
+        const ws = new WSClient(encounter.id, handleMessage, recorder);
+        wsRef.current = ws;
+        ws.connect();
+        await recorder.start();
+        await encounterApi.resumeEncounter(encounter.id);
+        setStatus("recording");
+      } catch (e: unknown) {
+        toast.error(e instanceof Error ? e.message : "Failed to reconnect");
+      }
+      return;
+    }
+
+    recorderRef.current.resume();
+    wsRef.current.sendControl("RESUME");
     await encounterApi.resumeEncounter(encounter.id);
     setStatus("recording");
   };

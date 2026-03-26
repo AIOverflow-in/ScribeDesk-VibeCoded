@@ -2,7 +2,7 @@
 import { create } from "zustand";
 import {
   Encounter, Patient, TranscriptSegment, PartialAnalysis,
-  ClinicalSummary, Vitals, Medication, Task as TaskType, FinalAnalysis
+  ClinicalSummary, Vitals, Medication, FinalAnalysis
 } from "../types";
 
 export type RecordingStatus = "idle" | "recording" | "paused" | "finishing" | "done";
@@ -16,7 +16,6 @@ interface EncounterState {
   summary: ClinicalSummary | null;
   vitals: Vitals | null;
   prescriptions: Medication[];
-  tasks: TaskType[];
   isProcessing: boolean;
   isConnected: boolean;
   recordingStatus: RecordingStatus;
@@ -28,6 +27,8 @@ interface EncounterState {
   addSegment: (seg: TranscriptSegment) => void;
   setPartialAnalysis: (a: PartialAnalysis) => void;
   applyFinalAnalysis: (data: FinalAnalysis) => void;
+  setSummary: (s: ClinicalSummary | null) => void;
+  setPrescriptions: (meds: Medication[]) => void;
   setProcessing: (v: boolean) => void;
   setRecordingStatus: (s: RecordingStatus) => void;
   reset: () => void;
@@ -42,7 +43,6 @@ const initial = {
   summary: null,
   vitals: null,
   prescriptions: [] as Medication[],
-  tasks: [] as TaskType[],
   isProcessing: false,
   isConnected: false,
   recordingStatus: "idle" as RecordingStatus,
@@ -67,10 +67,11 @@ export const useEncounterStore = create<EncounterState>((set) => ({
     summary: data.summary || null,
     vitals: data.vitals || null,
     prescriptions: data.prescriptions || [],
-    tasks: [],
     isProcessing: false,
   }),
 
+  setSummary: (summary) => set({ summary }),
+  setPrescriptions: (prescriptions) => set({ prescriptions }),
   setProcessing: (isProcessing) => set({ isProcessing }),
   setRecordingStatus: (recordingStatus) => set({ recordingStatus }),
 

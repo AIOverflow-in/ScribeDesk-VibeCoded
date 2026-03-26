@@ -5,6 +5,7 @@ from datetime import datetime
 
 class StartEncounterRequest(BaseModel):
     patient_id: str
+    template_id: Optional[str] = None
 
 
 class EncounterResponse(BaseModel):

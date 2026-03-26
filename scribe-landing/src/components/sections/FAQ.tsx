@@ -67,7 +67,7 @@ export default function FAQ() {
             ))}
             <p className="text-xs text-black/30 mt-6">
               More questions?{" "}
-              <a href="mailto:hello@sribe.ai" className="underline underline-offset-2 hover:text-black transition-colors">
+              <a href="mailto:hello@scribe.ai" className="underline underline-offset-2 hover:text-black transition-colors">
                 Email us
               </a>
             </p>

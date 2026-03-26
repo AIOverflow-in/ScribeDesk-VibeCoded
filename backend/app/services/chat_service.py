@@ -16,6 +16,7 @@ async def stream_chat_response(
     encounter_id: str,
     doctor_id: PydanticObjectId,
     question: str,
+    history: list[dict] | None = None,
 ) -> AsyncIterator[str]:
     encounter = await Encounter.get(PydanticObjectId(encounter_id))
     if not encounter or encounter.doctor_id != doctor_id:
@@ -60,6 +61,7 @@ async def stream_chat_response(
         prescriptions=rx_text,
         past_summaries=past_summaries,
         question=question,
+        history=history,
     )
 
     async for token in chat_completion_stream(messages):

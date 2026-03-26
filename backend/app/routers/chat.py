@@ -14,9 +14,13 @@ async def chat(
     body: ChatRequest,
     current_user: Doctor = Depends(get_current_user),
 ):
+    history = [{"role": h.role, "content": h.content} for h in (body.history or [])]
+
     async def event_stream():
-        async for token in stream_chat_response(encounter_id, current_user.id, body.message):
-            yield f"data: {token}\n\n"
+        async for token in stream_chat_response(encounter_id, current_user.id, body.message, history):
+            # Escape newlines so SSE line boundaries aren't corrupted
+            escaped = token.replace("\\", "\\\\").replace("\n", "\\n")
+            yield f"data: {escaped}\n\n"
         yield "data: [DONE]\n\n"
 
     return StreamingResponse(

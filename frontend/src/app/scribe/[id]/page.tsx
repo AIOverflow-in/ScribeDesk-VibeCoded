@@ -3,9 +3,17 @@ import { useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
-import { EncounterDetail } from "@/lib/types";
-import { getEncounterDetail } from "@/lib/api/encounters";
-import { ArrowLeft } from "lucide-react";
+import { EncounterDetail, Template } from "@/lib/types";
+import { getEncounterDetail, generatePrescription, regenerateSummary } from "@/lib/api/encounters";
+import { listTemplates } from "@/lib/api/templates";
+import { useEncounterStore } from "@/lib/store/encounterStore";
+import { useUIStore } from "@/lib/store/uiStore";
+import { useAuthStore } from "@/lib/store/authStore";
+import { ContextChat } from "@/components/scribe/ContextChat";
+import { PrescriptionPad } from "@/components/scribe/PrescriptionPad";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
+import { ArrowLeft, Loader2, Pill, MessageCircle, RefreshCw } from "lucide-react";
+import { toast } from "sonner";
 import { format } from "date-fns";
 
 export default function EncounterDetailPage() {
@@ -14,12 +22,21 @@ export default function EncounterDetailPage() {
   const [detail, setDetail] = useState<EncounterDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [generatingRx, setGeneratingRx] = useState(false);
+  const [rxMeds, setRxMeds] = useState<EncounterDetail["prescriptions"]>([]);
+  const [templates, setTemplates] = useState<Template[]>([]);
+  const [regenTemplateId, setRegenTemplateId] = useState("");
+  const [regenerating, setRegenerating] = useState(false);
+  const { setEncounter } = useEncounterStore();
+  const { chatOpen, toggleChat } = useUIStore();
+  const { user } = useAuthStore();
 
   useEffect(() => {
     getEncounterDetail(id)
-      .then(setDetail)
+      .then((d) => { setDetail(d); setRxMeds(d.prescriptions); setEncounter(d.encounter); })
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false));
+    listTemplates().then(setTemplates).catch(() => {});
   }, [id]);
 
   if (loading) {
@@ -43,7 +60,33 @@ export default function EncounterDetailPage() {
     );
   }
 
-  const { encounter, summary, prescriptions, segments } = detail;
+  const { encounter, summary, segments } = detail;
+
+  const handleGenerateRx = async () => {
+    setGeneratingRx(true);
+    try {
+      const meds = await generatePrescription(encounter.id);
+      setRxMeds(meds);
+      if (meds.length === 0) toast.info("No medications found in this encounter.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to generate prescription");
+    } finally {
+      setGeneratingRx(false);
+    }
+  };
+
+  const handleRegenerate = async () => {
+    setRegenerating(true);
+    try {
+      const newSummary = await regenerateSummary(encounter.id, regenTemplateId || undefined);
+      setDetail((d) => d ? { ...d, summary: newSummary } : d);
+      toast.success("Clinical summary regenerated.");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to regenerate summary");
+    } finally {
+      setRegenerating(false);
+    }
+  };
 
   function formatTime(seconds: number): string {
     const h = Math.floor(seconds / 3600);
@@ -85,20 +128,31 @@ export default function EncounterDetailPage() {
               </span>
             )}
           </div>
-          <div className="ml-auto text-xs text-gray-400">
-            {encounter.start_time && format(new Date(encounter.start_time), "MMM d, yyyy · h:mm a")}
+          <div className="ml-auto flex items-center gap-2">
+            <span className="text-xs text-gray-400">
+              {encounter.start_time && format(new Date(encounter.start_time), "MMM d, yyyy · h:mm a")}
+            </span>
+            <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
+              encounter.status === "FINISHED" ? "border-black text-black" : "border-black bg-black text-white"
+            }`}>
+              {encounter.status}
+            </span>
+            <Button
+              variant={chatOpen ? "default" : "outline"}
+              size="sm"
+              onClick={toggleChat}
+              className={`gap-2 ${chatOpen ? "bg-black text-white" : ""}`}
+            >
+              <MessageCircle className="w-4 h-4" />
+              AI Chat
+            </Button>
           </div>
-          <span className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-medium border ${
-            encounter.status === "FINISHED" ? "border-black text-black" : "border-black bg-black text-white"
-          }`}>
-            {encounter.status}
-          </span>
         </div>
 
         {/* Two-column layout */}
-        <div className="flex-1 overflow-hidden flex">
+        <PanelGroup direction="horizontal" className="flex-1 overflow-hidden">
           {/* Transcript */}
-          <div className="flex-1 flex flex-col p-6 overflow-y-auto border-r border-gray-100">
+          <Panel defaultSize={55} minSize={30} className="flex flex-col p-6 overflow-y-auto border-r border-gray-100">
             <h2 className="text-xs font-semibold text-gray-400 mb-4 uppercase tracking-widest">
               Transcript
             </h2>
@@ -116,97 +170,137 @@ export default function EncounterDetailPage() {
                 ))}
               </div>
             )}
-          </div>
+          </Panel>
+
+          <PanelResizeHandle className="w-1.5 bg-gray-100 hover:bg-gray-300 transition-colors cursor-col-resize" />
 
           {/* Analysis */}
-          <div className="w-80 xl:w-96 flex flex-col overflow-y-auto p-6 gap-6">
+          <Panel defaultSize={45} minSize={20} className="flex flex-col overflow-y-auto p-6 gap-6">
             {!summary ? (
               <p className="text-sm text-gray-400">No AI analysis available for this session.</p>
             ) : (
               <>
-                {summary.chief_complaint && (
-                  <section>
-                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Chief Complaint</h3>
-                    <p className="text-sm text-gray-800">{summary.chief_complaint}</p>
+                {/* Regenerate toolbar — always visible at top */}
+                <section className="flex items-center gap-2">
+                  <select
+                    className="flex-1 text-xs border border-gray-200 rounded-md px-2 py-1.5 bg-white text-gray-600 focus:outline-none focus:ring-1 focus:ring-gray-300"
+                    value={regenTemplateId}
+                    onChange={(e) => setRegenTemplateId(e.target.value)}
+                    disabled={regenerating}
+                  >
+                    <option value="">Default SOAP</option>
+                    {templates.map((t) => (
+                      <option key={t.id} value={t.id}>{t.name}</option>
+                    ))}
+                  </select>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 text-xs shrink-0"
+                    onClick={handleRegenerate}
+                    disabled={regenerating}
+                  >
+                    {regenerating
+                      ? <><Loader2 className="w-3 h-3 animate-spin" /> Regenerating...</>
+                      : <><RefreshCw className="w-3 h-3" /> Regenerate</>
+                    }
+                  </Button>
+                </section>
+
+                {/* Summary content — skeleton while regenerating */}
+                {regenerating ? (
+                  <section className="space-y-3">
+                    <div className="h-4 bg-gray-100 rounded w-3/4 animate-pulse" />
+                    <div className="h-4 bg-gray-100 rounded w-full animate-pulse" />
+                    <div className="h-4 bg-gray-100 rounded w-2/3 animate-pulse" />
+                    <div className="h-4 bg-gray-100 rounded w-full animate-pulse" />
+                    <div className="h-4 bg-gray-100 rounded w-1/2 animate-pulse" />
                   </section>
-                )}
-                {summary.history_of_present_illness && (
-                  <section>
-                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">History</h3>
-                    <p className="text-sm text-gray-800">{summary.history_of_present_illness}</p>
-                  </section>
-                )}
-                {summary.physical_examination && (
-                  <section>
-                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Examination</h3>
-                    <p className="text-sm text-gray-800">{summary.physical_examination}</p>
-                  </section>
-                )}
-                {summary.assessment && (
-                  <section>
-                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Assessment</h3>
-                    <p className="text-sm text-gray-800">{summary.assessment}</p>
-                  </section>
-                )}
-                {summary.plan && (
-                  <section>
-                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Plan</h3>
-                    <p className="text-sm text-gray-800">{summary.plan}</p>
-                  </section>
-                )}
-                {summary.diagnosis && summary.diagnosis.length > 0 && (
-                  <section>
-                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Diagnoses</h3>
-                    <div className="flex flex-wrap gap-1.5">
-                      {summary.diagnosis.map((d, i) => (
-                        <span key={i} className="px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-700">{d}</span>
-                      ))}
-                    </div>
-                  </section>
-                )}
-                {vitalsItems.length > 0 && (
-                  <section>
-                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Vitals</h3>
-                    <div className="grid grid-cols-3 gap-2">
-                      {vitalsItems.map(([key, val]) => (
-                        <div key={key} className="border border-gray-200 rounded-lg p-2 text-center">
-                          <p className="text-[10px] text-gray-400 uppercase">{vitalsLabels[key] || key}</p>
-                          <p className="text-sm font-semibold text-gray-900">{val as string}</p>
+                ) : (
+                  <>
+                    {summary.chief_complaint && (
+                      <section>
+                        <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Chief Complaint</h3>
+                        <p className="text-sm text-gray-800">{summary.chief_complaint}</p>
+                      </section>
+                    )}
+                    {summary.history_of_present_illness && (
+                      <section>
+                        <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">History</h3>
+                        <p className="text-sm text-gray-800">{summary.history_of_present_illness}</p>
+                      </section>
+                    )}
+                    {summary.physical_examination && (
+                      <section>
+                        <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Examination</h3>
+                        <p className="text-sm text-gray-800">{summary.physical_examination}</p>
+                      </section>
+                    )}
+                    {summary.assessment && (
+                      <section>
+                        <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Assessment</h3>
+                        <p className="text-sm text-gray-800">{summary.assessment}</p>
+                      </section>
+                    )}
+                    {summary.plan && (
+                      <section>
+                        <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Plan</h3>
+                        <p className="text-sm text-gray-800">{summary.plan}</p>
+                      </section>
+                    )}
+                    {summary.diagnosis && summary.diagnosis.length > 0 && (
+                      <section>
+                        <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Diagnoses</h3>
+                        <div className="flex flex-wrap gap-1.5">
+                          {summary.diagnosis.map((d, i) => (
+                            <span key={i} className="px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-700">{d}</span>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </section>
-                )}
-                {prescriptions.length > 0 && (
-                  <section>
-                    <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Medications</h3>
-                    <div className="space-y-2">
-                      {prescriptions.map((med, i) => (
-                        <div key={i} className="border border-gray-200 rounded-lg p-3">
-                          <div className="flex items-center justify-between gap-2">
-                            <p className="font-medium text-sm text-gray-900">{med.name}</p>
-                            {med.dosage && (
-                              <span className="text-xs border border-gray-200 px-1.5 py-0.5 rounded text-gray-500">{med.dosage}</span>
-                            )}
-                          </div>
-                          {(med.frequency || med.duration) && (
-                            <p className="text-xs text-gray-400 mt-1">
-                              {[med.frequency, med.duration].filter(Boolean).join(" · ")}
-                            </p>
-                          )}
-                          {med.instructions && (
-                            <p className="text-xs text-gray-500 mt-1">{med.instructions}</p>
-                          )}
+                      </section>
+                    )}
+                    {vitalsItems.length > 0 && (
+                      <section>
+                        <h3 className="text-xs font-semibold text-gray-400 mb-2 uppercase tracking-widest">Vitals</h3>
+                        <div className="grid grid-cols-3 gap-2">
+                          {vitalsItems.map(([key, val]) => (
+                            <div key={key} className="border border-gray-200 rounded-lg p-2 text-center">
+                              <p className="text-[10px] text-gray-400 uppercase">{vitalsLabels[key] || key}</p>
+                              <p className="text-sm font-semibold text-gray-900">{val as string}</p>
+                            </div>
+                          ))}
                         </div>
-                      ))}
-                    </div>
-                  </section>
+                      </section>
+                    )}
+                  </>
                 )}
+
+                <section>
+                  <h3 className="text-xs font-semibold text-gray-400 mb-3 uppercase tracking-widest">Prescription</h3>
+                  {rxMeds.length > 0 ? (
+                    <PrescriptionPad
+                      medications={rxMeds}
+                      doctorName={user?.name ?? ""}
+                      doctorSpecialization={user?.specialization}
+                      patientName={encounter.patient_name}
+                      patientAge={encounter.patient_age}
+                      patientGender={encounter.patient_gender}
+                      date={encounter.start_time}
+                      onRegenerate={handleGenerateRx}
+                      regenerating={generatingRx}
+                    />
+                  ) : (
+                    <Button size="sm" variant="outline" className="w-full gap-2" onClick={handleGenerateRx} disabled={generatingRx || !summary}>
+                      {generatingRx ? <><Loader2 className="w-4 h-4 animate-spin" /> Generating...</> : <><Pill className="w-4 h-4" /> Generate Prescription</>}
+                    </Button>
+                  )}
+                </section>
               </>
             )}
-          </div>
-        </div>
+          </Panel>
+        </PanelGroup>
       </div>
+
+      <ContextChat />
     </AppShell>
   );
 }

@@ -1,7 +1,7 @@
 # Environment files — never commit secrets
 backend/.env
 frontend/.env.local
-sribe-landing/.env.local
+scribe-landing/.env.local
 
 # Dependencies
 node_modules/
@@ -25,7 +25,7 @@ out/
 npm-debug.log*
 
 # Data
-sribe-landing/data/submissions.json
+scribe-landing/data/submissions.json
 
 # TypeScript
 *.tsbuildinfo

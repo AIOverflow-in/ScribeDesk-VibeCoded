@@ -5,7 +5,7 @@ import { AppShell } from "@/components/layout/AppShell";
 import { Button } from "@/components/ui/button";
 import { EncounterListItem } from "@/lib/types";
 import { listEncounters } from "@/lib/api/encounters";
-import { Plus, ChevronRight, Mic } from "lucide-react";
+import { Plus, ChevronRight, Mic, PlayCircle } from "lucide-react";
 import { format, formatDuration, intervalToDuration } from "date-fns";
 
 function StatusBadge({ status }: { status: string }) {
@@ -85,11 +85,16 @@ export default function ScribePage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {encounters.map((enc) => (
+                {encounters.map((enc) => {
+                  const isResumable = enc.status === "ACTIVE" || enc.status === "PAUSED";
+                  return (
                   <tr
                     key={enc.id}
                     className="hover:bg-gray-50 cursor-pointer transition-colors"
-                    onClick={() => router.push(`/scribe/${enc.id}`)}
+                    onClick={() => isResumable
+                      ? router.push(`/scribe/new?resume=${enc.id}`)
+                      : router.push(`/scribe/${enc.id}`)
+                    }
                   >
                     <td className="px-4 py-4">
                       <p className="font-medium text-gray-900">{enc.patient_name}</p>
@@ -107,11 +112,18 @@ export default function ScribePage() {
                     </td>
                     <td className="px-4 py-4 text-gray-600">{formatDur(enc.duration_secs)}</td>
                     <td className="px-4 py-4"><StatusBadge status={enc.status} /></td>
-                    <td className="px-4 py-4 text-gray-300">
-                      <ChevronRight className="w-4 h-4" />
+                    <td className="px-4 py-4 text-right">
+                      {isResumable ? (
+                        <span className="inline-flex items-center gap-1 text-xs font-medium text-black border border-black rounded px-2 py-1">
+                          <PlayCircle className="w-3.5 h-3.5" /> Resume
+                        </span>
+                      ) : (
+                        <ChevronRight className="w-4 h-4 text-gray-300" />
+                      )}
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

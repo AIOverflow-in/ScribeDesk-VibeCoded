@@ -14,6 +14,7 @@ class Encounter(Document):
     end_time: Optional[datetime] = None
     transcript_text: str = ""
     audio_url: Optional[str] = None
+    template_id: Optional[PydanticObjectId] = None
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:

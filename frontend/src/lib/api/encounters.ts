@@ -1,4 +1,4 @@
-import { apiFetch } from "./client";
+import { apiFetch, BASE_URL, getAccessToken } from "./client";
 import { Encounter, EncounterListItem, EncounterDetail } from "../types";
 
 export async function listEncounters(): Promise<EncounterListItem[]> {
@@ -9,10 +9,10 @@ export async function getEncounterDetail(id: string): Promise<EncounterDetail> {
   return apiFetch<EncounterDetail>(`/encounters/${id}/detail`);
 }
 
-export async function startEncounter(patient_id: string): Promise<Encounter> {
+export async function startEncounter(patient_id: string, template_id?: string): Promise<Encounter> {
   return apiFetch<Encounter>("/encounters/start", {
     method: "POST",
-    body: JSON.stringify({ patient_id }),
+    body: JSON.stringify({ patient_id, template_id: template_id || null }),
   });
 }
 
@@ -32,9 +32,19 @@ export async function getEncounter(id: string): Promise<Encounter> {
   return apiFetch<Encounter>(`/encounters/${id}`);
 }
 
+export async function generatePrescription(id: string) {
+  return apiFetch<Array<{ name: string; dosage: string; frequency: string; duration: string; instructions: string; is_suggested: boolean }>>(`/encounters/${id}/generate-prescription`, { method: "POST" });
+}
+
+export async function regenerateSummary(id: string, templateId?: string) {
+  return apiFetch<import("../types").ClinicalSummary>(`/encounters/${id}/regenerate-summary`, {
+    method: "POST",
+    body: JSON.stringify({ template_id: templateId || null }),
+  });
+}
+
 export async function uploadSessionAudio(id: string, blob: Blob): Promise<void> {
-  const BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
-  const token = typeof window !== "undefined" ? localStorage.getItem("access_token") : null;
+  const token = getAccessToken();
   const form = new FormData();
   form.append("file", blob, "session.webm");
   const res = await fetch(`${BASE_URL}/encounters/${id}/upload-audio`, {

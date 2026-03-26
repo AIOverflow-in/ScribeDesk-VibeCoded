@@ -1,21 +1,34 @@
 import asyncio
 import logging
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
-from app.schemas.encounter import StartEncounterRequest, EncounterResponse
+from pydantic import BaseModel
+from typing import Optional
+from app.schemas.encounter import StartEncounterRequest
 from app.services import encounter_service
 from app.services.deepgram_client import transcribe_prerecorded
+from app.services.llm_service import chat_completion, parse_json_response
+from app.services.prompts import prescription_messages, clinical_summary_messages, vitals_extraction_messages
 from app.dependencies import get_current_user
 from app.models.doctor import Doctor
 from app.models.patient import Patient
-from app.models.clinical_summary import ClinicalSummary
-from app.models.prescription import Prescription
+from app.models.clinical_summary import ClinicalSummary, Vitals
+from app.models.prescription import Prescription, Medication
 from app.models.transcript_segment import TranscriptSegment
+from app.models.template import Template
 from app.models.encounter import Encounter
 from beanie.odm.fields import PydanticObjectId
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/encounters", tags=["encounters"])
+
+
+def _clean_med(m: dict) -> dict:
+    """Sanitize LLM-returned medication dict: convert 'null'/'None' string literals to empty string."""
+    for field in ("dosage", "frequency", "duration"):
+        if isinstance(m.get(field), str) and m[field].lower() in ("null", "none"):
+            m[field] = ""
+    return m
 
 
 def _enc_dict(e):
@@ -27,6 +40,7 @@ def _enc_dict(e):
         "start_time": e.start_time.isoformat() if e.start_time else None,
         "end_time": e.end_time.isoformat() if e.end_time else None,
         "transcript_text": e.transcript_text,
+        "template_id": str(e.template_id) if e.template_id else None,
         "created_at": e.created_at.isoformat(),
     }
 
@@ -131,7 +145,7 @@ async def start_encounter(
     body: StartEncounterRequest,
     current_user: Doctor = Depends(get_current_user),
 ):
-    encounter = await encounter_service.start_encounter(current_user.id, body.patient_id)
+    encounter = await encounter_service.start_encounter(current_user.id, body.patient_id, body.template_id)
     return _enc_dict(encounter)
 
 
@@ -169,6 +183,144 @@ async def get_encounter(
 ):
     encounter = await encounter_service.get_encounter(encounter_id, current_user.id)
     return _enc_dict(encounter)
+
+
+@router.post("/{encounter_id}/generate-prescription", response_model=list)
+async def generate_prescription(
+    encounter_id: str,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Generate medication suggestions from the encounter transcript and clinical summary."""
+    encounter = await encounter_service.get_encounter(encounter_id, current_user.id)
+    if not encounter.transcript_text or not encounter.transcript_text.strip():
+        raise HTTPException(status_code=400, detail="No transcript available")
+
+    # Get existing summary text for better prescription context
+    summary = await ClinicalSummary.find_one(
+        ClinicalSummary.encounter_id == PydanticObjectId(encounter_id)
+    )
+    summary_text = summary.summary_text if summary else ""
+
+    text = await chat_completion(
+        prescription_messages(encounter.transcript_text, summary_text),
+        json_mode=True,
+    )
+    result = await parse_json_response(text)
+    meds = [Medication(**_clean_med(m)) for m in result.get("medications", []) if m.get("name")]
+
+    if not meds:
+        return []
+
+    # Replace any existing prescription for this encounter
+    existing = await Prescription.find_one(
+        Prescription.encounter_id == PydanticObjectId(encounter_id)
+    )
+    if existing:
+        await existing.delete()
+
+    rx = Prescription(encounter_id=PydanticObjectId(encounter_id), medications=meds)
+    await rx.insert()
+
+    return [
+        {
+            "name": m.name,
+            "dosage": m.dosage,
+            "frequency": m.frequency,
+            "duration": m.duration,
+            "instructions": m.instructions,
+            "is_suggested": m.is_suggested,
+        }
+        for m in meds
+    ]
+
+
+class RegenerateSummaryRequest(BaseModel):
+    template_id: Optional[str] = None
+
+
+@router.post("/{encounter_id}/regenerate-summary", response_model=dict)
+async def regenerate_summary(
+    encounter_id: str,
+    body: RegenerateSummaryRequest,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Re-run clinical summary generation, optionally with a different template."""
+    encounter = await encounter_service.get_encounter(encounter_id, current_user.id)
+    if not encounter.transcript_text or not encounter.transcript_text.strip():
+        raise HTTPException(status_code=400, detail="No transcript available")
+
+    # Determine template content
+    template_content = None
+    template_id_to_use = body.template_id or (str(encounter.template_id) if encounter.template_id else None)
+    if template_id_to_use:
+        tmpl = await Template.get(PydanticObjectId(template_id_to_use))
+        if tmpl:
+            template_content = tmpl.content
+
+    specialization = current_user.specialization or "General Physician"
+
+    # Run summary + vitals concurrently
+    import asyncio as _asyncio
+    results = await _asyncio.gather(
+        _run_summary_inline(encounter.transcript_text, specialization, template_content),
+        _run_vitals_inline(encounter.transcript_text),
+        return_exceptions=True,
+    )
+    summary_data, vitals_data = results
+
+    if isinstance(summary_data, Exception) or not summary_data:
+        raise HTTPException(status_code=500, detail="Summary generation failed")
+
+    # Replace existing clinical summary
+    existing = await ClinicalSummary.find_one(
+        ClinicalSummary.encounter_id == PydanticObjectId(encounter_id)
+    )
+    if existing:
+        await existing.delete()
+
+    summary = ClinicalSummary(
+        encounter_id=PydanticObjectId(encounter_id),
+        chief_complaint=summary_data.get("chief_complaint"),
+        history_of_present_illness=summary_data.get("history_of_present_illness"),
+        physical_examination=summary_data.get("physical_examination"),
+        assessment=summary_data.get("assessment"),
+        plan=summary_data.get("plan"),
+        summary_text=summary_data.get("summary_text", ""),
+        diagnosis=summary_data.get("diagnosis", []),
+    )
+    if vitals_data and not isinstance(vitals_data, Exception):
+        summary.vitals = Vitals(**{k: v for k, v in vitals_data.items() if v is not None})
+
+    # Update template_id on encounter if changed
+    if body.template_id and body.template_id != str(encounter.template_id or ""):
+        encounter.template_id = PydanticObjectId(body.template_id)
+        await encounter.save()
+
+    await summary.insert()
+
+    return {
+        "chief_complaint": summary.chief_complaint,
+        "history_of_present_illness": summary.history_of_present_illness,
+        "physical_examination": summary.physical_examination,
+        "assessment": summary.assessment,
+        "plan": summary.plan,
+        "summary_text": summary.summary_text,
+        "diagnosis": summary.diagnosis,
+        "vitals": summary.vitals.model_dump() if summary.vitals else None,
+    }
+
+
+async def _run_summary_inline(transcript: str, specialization: str, template_content: str | None) -> dict:
+    text = await chat_completion(
+        clinical_summary_messages(transcript, specialization, template_content),
+        json_mode=True,
+    )
+    return await parse_json_response(text)
+
+
+async def _run_vitals_inline(transcript: str) -> dict:
+    text = await chat_completion(vitals_extraction_messages(transcript), json_mode=True)
+    return await parse_json_response(text)
 
 
 @router.post("/{encounter_id}/upload-audio", status_code=202)
