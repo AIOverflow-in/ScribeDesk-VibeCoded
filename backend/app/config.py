@@ -7,7 +7,7 @@ class Settings(BaseSettings):
 
     # MongoDB
     mongodb_url: str = "mongodb://root:12345@localhost:27017/"
-    mongodb_db_name: str = "scribe"
+    mongodb_db_name: str = "scribedesk"
 
     # JWT
     jwt_secret: str = "change-this-secret"
@@ -28,7 +28,7 @@ class Settings(BaseSettings):
     minio_endpoint: str = "localhost:9000"
     minio_access_key: str = "minioadmin"
     minio_secret_key: str = "minioadmin"
-    minio_bucket: str = "scribe-files"
+    minio_bucket: str = "scribedesk-files"
     minio_secure: bool = False
 
     # CORS

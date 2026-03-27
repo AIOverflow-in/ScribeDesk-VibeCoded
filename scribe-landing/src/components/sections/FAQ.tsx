@@ -5,19 +5,19 @@ import { useState } from "react";
 const faqs = [
   {
     q: "Is my patient data secure?",
-    a: "Scribe does not store raw audio recordings. Transcripts and clinical summaries are stored encrypted and access-controlled per account. We follow strict data minimisation principles.",
+    a: "ScribeDesk does not store raw audio recordings. Transcripts and clinical summaries are stored encrypted and access-controlled per account. We follow strict data minimisation principles.",
   },
   {
-    q: "Does Scribe work in the UK?",
+    q: "Does ScribeDesk work in the UK?",
     a: "Yes — built for UK clinical workflows. Medical transcription is optimised for British English accents, NHS terminology, and UK medication naming conventions.",
   },
   {
     q: "Do I need any special hardware?",
-    a: "No. Scribe runs entirely in your web browser. Any modern device with a microphone works — nothing to install.",
+    a: "No. ScribeDesk runs entirely in your web browser. Any modern device with a microphone works — nothing to install.",
   },
   {
     q: "How accurate is the transcription?",
-    a: "Scribe uses Deepgram's nova-2-medical model, achieving industry-leading accuracy for clinical speech including drug names, dosages, and diagnoses.",
+    a: "ScribeDesk uses Deepgram's nova-2-medical model, achieving industry-leading accuracy for clinical speech including drug names, dosages, and diagnoses.",
   },
   {
     q: "Can I try it before committing?",
@@ -67,7 +67,7 @@ export default function FAQ() {
             ))}
             <p className="text-xs text-black/30 mt-6">
               More questions?{" "}
-              <a href="mailto:hello@scribe.ai" className="underline underline-offset-2 hover:text-black transition-colors">
+              <a href="mailto:hello@scribedesk.app" className="underline underline-offset-2 hover:text-black transition-colors">
                 Email us
               </a>
             </p>

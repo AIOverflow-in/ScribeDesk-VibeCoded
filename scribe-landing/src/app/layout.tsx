@@ -9,9 +9,9 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
-  title: "Scribe — Clinical AI Scribe for Doctors",
+  title: "ScribeDesk — Clinical AI Scribe for Doctors",
   description:
-    "Scribe listens to your patient consultations in real time, generates SOAP notes, extracts vitals, and suggests prescriptions — so you can focus on medicine, not paperwork.",
+    "ScribeDesk listens to your patient consultations in real time, generates SOAP notes, extracts vitals, and suggests prescriptions — so you can focus on medicine, not paperwork.",
   keywords: [
     "clinical AI scribe",
     "medical transcription",
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
     "clinical documentation",
   ],
   openGraph: {
-    title: "Scribe — Clinical AI Scribe for Doctors",
+    title: "ScribeDesk — Clinical AI Scribe for Doctors",
     description:
       "Real-time AI transcription and clinical note generation. From consultation to clinical notes, automatically.",
     type: "website",

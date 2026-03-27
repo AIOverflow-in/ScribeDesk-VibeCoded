@@ -12,7 +12,7 @@ export default function Hero() {
             From consultation to clinical notes. Automatically.
           </h1>
           <p className="mt-6 text-black/50 text-lg max-w-xl leading-relaxed">
-            Scribe listens to your patient conversations in real time, generates SOAP notes, extracts vitals, and suggests prescriptions.
+            ScribeDesk listens to your patient conversations in real time, generates SOAP notes, extracts vitals, and suggests prescriptions.
           </p>
           <div className="mt-10 flex items-center gap-4">
             <a

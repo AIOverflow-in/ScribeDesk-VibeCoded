@@ -3,7 +3,7 @@ version: "3.9"
 services:
   mongodb:
     image: mongo:7
-    container_name: scribe-mongodb
+    container_name: scribedesk-mongodb
     restart: unless-stopped
     environment:
       MONGO_INITDB_ROOT_USERNAME: root
@@ -20,7 +20,7 @@ services:
 
   mongo-express:
     image: mongo-express:latest
-    container_name: scribe-mongo-express
+    container_name: scribedesk-mongo-express
     restart: unless-stopped
     depends_on:
       mongodb:
@@ -35,7 +35,7 @@ services:
 
   minio:
     image: minio/minio:latest
-    container_name: scribe-minio
+    container_name: scribedesk-minio
     restart: unless-stopped
     command: server /data --console-address ":9001"
     ports:
@@ -54,7 +54,7 @@ services:
 
   backend:
     build: ./backend
-    container_name: scribe-backend
+    container_name: scribedesk-backend
     restart: unless-stopped
     depends_on:
       mongodb:
@@ -79,7 +79,7 @@ services:
     build:
       context: ./frontend
       dockerfile: Dockerfile.dev
-    container_name: scribe-frontend
+    container_name: scribedesk-frontend
     restart: unless-stopped
     depends_on:
       - backend

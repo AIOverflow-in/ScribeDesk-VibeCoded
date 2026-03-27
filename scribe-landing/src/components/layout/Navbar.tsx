@@ -20,7 +20,7 @@ export default function Navbar() {
           <div className="w-6 h-6 bg-black flex items-center justify-center text-white font-bold text-xs">
             S
           </div>
-          <span className="font-semibold text-sm tracking-tight text-black">Scribe</span>
+          <span className="font-semibold text-sm tracking-tight text-black">ScribeDesk</span>
         </a>
 
         {/* Desktop nav */}

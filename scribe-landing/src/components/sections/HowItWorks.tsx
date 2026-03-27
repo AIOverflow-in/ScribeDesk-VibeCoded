@@ -2,7 +2,7 @@ const steps = [
   {
     number: "01",
     title: "Record",
-    description: "Open a session in your browser. Scribe captures the consultation live — no hardware, no app download.",
+    description: "Open a session in your browser. ScribeDesk captures the consultation live — no hardware, no app download.",
   },
   {
     number: "02",

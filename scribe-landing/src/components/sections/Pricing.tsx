@@ -3,7 +3,7 @@ const plans = [
     name: "Free",
     price: "£0",
     period: "/month",
-    description: "Try Scribe. No credit card required.",
+    description: "Try ScribeDesk. No credit card required.",
     badge: null,
     features: [
       "10 consultations / month",
@@ -141,7 +141,7 @@ export default function Pricing() {
                 <span className="text-sm text-black/40 ml-3">Custom volumes, integrations, and SLAs for hospitals and large practices.</span>
               </div>
               <a
-                href="mailto:hello@scribe.ai"
+                href="mailto:hello@scribedesk.app"
                 className="text-xs text-black/50 hover:text-black underline underline-offset-4 transition-colors flex-shrink-0"
               >
                 Contact us

@@ -34,7 +34,7 @@ export function Sidebar() {
         <div className="w-7 h-7 bg-white rounded flex items-center justify-center font-bold text-xs text-black mr-3 shrink-0">
           S
         </div>
-        <span className="hidden md:block font-semibold text-base tracking-tight">Scribe</span>
+        <span className="hidden md:block font-semibold text-base tracking-tight">ScribeDesk</span>
       </div>
 
       {/* Nav */}
