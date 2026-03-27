@@ -11,7 +11,7 @@ import { useUIStore } from "@/lib/store/uiStore";
 import { useAuthStore } from "@/lib/store/authStore";
 import { ContextChat } from "@/components/scribe/ContextChat";
 import { PrescriptionPad } from "@/components/scribe/PrescriptionPad";
-import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
+import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
 import { ArrowLeft, Loader2, Pill, MessageCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
