@@ -11,7 +11,7 @@ import { useUIStore } from "@/lib/store/uiStore";
 import { useAuthStore } from "@/lib/store/authStore";
 import { ContextChat } from "@/components/scribe/ContextChat";
 import { PrescriptionPad } from "@/components/scribe/PrescriptionPad";
-import { Panel, PanelGroup, PanelResizeHandle } from "react-resizable-panels";
+import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
 import { ArrowLeft, Loader2, Pill, MessageCircle, RefreshCw } from "lucide-react";
 import { toast } from "sonner";
 import { format } from "date-fns";
@@ -150,7 +150,7 @@ export default function EncounterDetailPage() {
         </div>
 
         {/* Two-column layout */}
-        <PanelGroup direction="horizontal" className="flex-1 overflow-hidden">
+        <PanelGroup orientation="horizontal" className="flex-1 overflow-hidden">
           {/* Transcript */}
           <Panel defaultSize={55} minSize={30} className="flex flex-col p-6 overflow-y-auto border-r border-gray-100">
             <h2 className="text-xs font-semibold text-gray-400 mb-4 uppercase tracking-widest">
