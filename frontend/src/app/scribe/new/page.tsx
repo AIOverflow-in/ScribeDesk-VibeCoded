@@ -116,7 +116,7 @@ export default function NewScribePage() {
         )}
 
         {/* Main two-column layout */}
-        <PanelGroup direction="horizontal" className="flex-1 overflow-hidden min-h-0">
+        <PanelGroup orientation="horizontal" className="flex-1 overflow-hidden min-h-0">
 
           {/* LEFT: Transcript + recording controls at bottom */}
           <Panel defaultSize={60} minSize={30} className="flex flex-col border-r border-gray-100 min-w-0">
