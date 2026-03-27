@@ -1,5 +1,5 @@
 "use client";
-import { useEffect, useState } from "react";
+import { Suspense, useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { AppShell } from "@/components/layout/AppShell";
 import { PatientSearch } from "@/components/scribe/PatientSearch";
@@ -18,7 +18,7 @@ import { listTemplates } from "@/lib/api/templates";
 import { getEncounter } from "@/lib/api/encounters";
 import { getPatient } from "@/lib/api/patients";
 
-export default function NewScribePage() {
+function NewScribePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const resumeId = searchParams.get("resume");
@@ -149,5 +149,13 @@ export default function NewScribePage() {
 
       <ContextChat />
     </AppShell>
+  );
+}
+
+export default function NewScribePage() {
+  return (
+    <Suspense>
+      <NewScribePageInner />
+    </Suspense>
   );
 }
