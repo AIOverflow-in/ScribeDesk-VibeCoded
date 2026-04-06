@@ -12,23 +12,26 @@ const plans = [
       "7-day transcript history",
       "Community support",
     ],
-    locked: ["Vitals extraction", "Prescriptions", "Tasks", "PDF exports"],
+    locked: ["ICD-10 / CPT billing codes", "Drug interaction checker", "Patient summaries", "Letter generator", "PDF exports"],
     cta: "Start free",
     highlight: false,
   },
   {
     name: "Starter",
-    price: "£10",
+    price: "£29",
     period: "/month",
     description: "Everything a solo practice needs.",
     badge: "Most popular",
     features: [
       "100 consultations / month",
-      "Full SOAP + vitals",
-      "Prescription suggestions",
-      "Task generation",
-      "All 4 templates",
-      "PDF exports",
+      "Full SOAP + vitals extraction",
+      "ICD-10 / CPT billing codes",
+      "After-visit patient summaries",
+      "Drug interaction checker",
+      "Referral & sick note letters",
+      "Prescription Pad",
+      "Differential diagnosis (live)",
+      "All templates + PDF exports",
       "90-day history",
       "Email support",
     ],
@@ -37,17 +40,21 @@ const plans = [
     highlight: true,
   },
   {
-    name: "Pro",
-    price: "£30",
+    name: "Practice",
+    price: "£79",
     period: "/month",
-    description: "Unlimited capacity for busy clinicians.",
+    description: "For clinics with multiple doctors.",
     badge: null,
     features: [
       "Unlimited consultations",
       "Everything in Starter",
-      "Custom templates",
-      "AI chat per encounter",
-      "Up to 3 team members",
+      "Up to 3 doctors",
+      "Pre-visit prep brief",
+      "Evidence-based suggestions",
+      "Multilingual transcription",
+      "EHR copy helper",
+      "Encounter sharing & handover",
+      "PHI audit log access",
       "Priority support",
     ],
     locked: [],
@@ -68,9 +75,12 @@ export default function Pricing() {
 
           {/* Plans */}
           <div className="lg:pl-12 py-12 lg:py-16">
-            <h2 className="text-3xl font-bold text-black tracking-tight mb-10">
+            <h2 className="text-3xl font-bold text-black tracking-tight mb-2">
               Simple, transparent pricing.
             </h2>
+            <p className="text-black/40 text-sm mb-10">
+              Starter at £29 undercuts all mid-tier competitors significantly. Freed starts at $39, Heidi at $110.
+            </p>
 
             <div className="grid sm:grid-cols-3 border border-black/10">
               {plans.map((plan, i) => (
@@ -138,7 +148,9 @@ export default function Pricing() {
             <div className="border border-black/10 border-t-0 px-6 py-4 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <span className="text-sm font-semibold text-black">Enterprise</span>
-                <span className="text-sm text-black/40 ml-3">Custom volumes, integrations, and SLAs for hospitals and large practices.</span>
+                <span className="text-sm text-black/40 ml-3">
+                  Custom volumes, EHR integration, HIPAA BAA, DSPT toolkit, and SLAs for hospitals and NHS trusts.
+                </span>
               </div>
               <a
                 href="mailto:hello@scribedesk.app"

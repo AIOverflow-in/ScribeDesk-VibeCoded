@@ -1,15 +1,17 @@
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Request
 from app.schemas.auth import LoginRequest, TokenResponse, RefreshRequest, AccessTokenResponse, DoctorProfile
 from app.services import auth_service
 from app.dependencies import get_current_user
 from app.models.doctor import Doctor
+from app.services.audit_service import log_phi_access
+from datetime import datetime, timezone
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 @router.post("/login", response_model=dict)
-async def login(body: LoginRequest):
-    return await auth_service.login(body.email, body.password)
+async def login(body: LoginRequest, request: Request):
+    return await auth_service.login(body.email, body.password, request)
 
 
 @router.post("/refresh", response_model=AccessTokenResponse)
@@ -21,6 +23,24 @@ async def refresh(body: RefreshRequest):
 async def logout(body: RefreshRequest):
     await auth_service.logout(body.refresh_token)
     return {"message": "Logged out successfully"}
+
+
+@router.post("/accept-baa")
+async def accept_baa(
+    request: Request,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Doctor accepts the Business Associate Agreement (HIPAA requirement)."""
+    current_user.baa_accepted_at = datetime.now(timezone.utc)
+    await current_user.save()
+    await log_phi_access(
+        action="ACCEPT_BAA",
+        resource_type="auth",
+        doctor_id=current_user.id,
+        doctor_email=current_user.email,
+        request=request,
+    )
+    return {"baa_accepted_at": current_user.baa_accepted_at.isoformat()}
 
 
 @router.get("/me")

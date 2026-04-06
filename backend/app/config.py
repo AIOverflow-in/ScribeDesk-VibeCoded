@@ -12,8 +12,8 @@ class Settings(BaseSettings):
     # JWT
     jwt_secret: str = "change-this-secret"
     jwt_algorithm: str = "HS256"
-    jwt_access_token_expire_minutes: int = 2880  # 2 days
-    jwt_refresh_token_expire_days: int = 30
+    jwt_access_token_expire_minutes: int = 15    # HIPAA § 164.312(a)(2)(iii) — auto-logoff
+    jwt_refresh_token_expire_days: int = 7
 
     # OpenAI
     openai_api_key: str = ""

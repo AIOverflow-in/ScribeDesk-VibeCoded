@@ -4,6 +4,7 @@ import Hero from "@/components/sections/Hero";
 import Problem from "@/components/sections/Problem";
 import HowItWorks from "@/components/sections/HowItWorks";
 import Features from "@/components/sections/Features";
+import Compliance from "@/components/sections/Compliance";
 import SocialProof from "@/components/sections/SocialProof";
 import Pricing from "@/components/sections/Pricing";
 import DemoForm from "@/components/sections/DemoForm";
@@ -18,6 +19,7 @@ export default function Home() {
         <Problem />
         <HowItWorks />
         <Features />
+        <Compliance />
         <SocialProof />
         <Pricing />
         <DemoForm />

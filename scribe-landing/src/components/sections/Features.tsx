@@ -1,27 +1,63 @@
 const features = [
   {
-    title: "Medical Transcription",
-    description: "Real-time speech-to-text using Deepgram nova-2-medical — optimised for drug names, dosages, and clinical terminology.",
+    title: "Real-Time Medical Transcription",
+    description:
+      "Deepgram nova-2-medical captures every word with speaker separation (Doctor / Patient). Optimised for drug names, dosages, and clinical terminology across 7 languages.",
   },
   {
     title: "SOAP Note Generation",
-    description: "Full Subjective, Objective, Assessment, and Plan notes structured by GPT-4o from the conversation transcript.",
+    description:
+      "Structured Subjective, Objective, Assessment, and Plan notes generated automatically from the transcript — with custom template support for any specialty.",
   },
   {
-    title: "Vitals Extraction",
-    description: "Blood pressure, heart rate, SpO₂, and temperature automatically parsed and surfaced from the consultation.",
+    title: "ICD-10 & CPT Billing Codes",
+    description:
+      "Diagnosis and procedure codes suggested from the encounter transcript. Accept or reject each code before exporting alongside your clinical PDF — so you never under-code again.",
   },
   {
-    title: "Prescription Suggestions",
-    description: "Medication, dosage, frequency, and duration suggested in context. Always reviewed by the clinician before prescribing.",
+    title: "After-Visit Patient Summary",
+    description:
+      "Plain-English summary for the patient: diagnosis, medications, follow-up instructions, and when to seek urgent care. One-click copy or printable card.",
   },
   {
-    title: "Follow-up Tasks",
-    description: "Referrals, blood tests, and imaging requests automatically identified and added to your task list.",
+    title: "Drug Interaction Checker",
+    description:
+      "When multiple medications are prescribed, ScribeDesk automatically flags known interactions — Minor, Moderate, or Major — with mechanism and management guidance inline.",
   },
   {
-    title: "Custom Templates",
-    description: "Discharge summaries, referral letters, and prescriptions — fill any template with encounter data in one click.",
+    title: "Post-Visit Letter Generator",
+    description:
+      "Referral letters, sick notes, and patient instruction letters generated from encounter context in seconds. Editable rich-text preview with one-click PDF download.",
+  },
+  {
+    title: "Differential Diagnosis During Recording",
+    description:
+      "Real-time clinical intelligence while you consult: top 3 differential diagnoses, red flags, and suggested workup — updated every 30 seconds throughout the session.",
+  },
+  {
+    title: "Prescription Pad",
+    description:
+      "Medications, dosages, frequency, and duration suggested in context. Formatted as a printable medical Rx with clinic letterhead and doctor signature.",
+  },
+  {
+    title: "Pre-Visit Prep Brief",
+    description:
+      "Before starting a session, see a snapshot of the patient's prior visits: active diagnoses, current medications, pending tasks, and recent chief complaints.",
+  },
+  {
+    title: "Multilingual Support",
+    description:
+      "Record consultations in English, Hindi, Arabic, Spanish, French, German, or Mandarin. SOAP notes always generated in English; patient summaries in the patient's language.",
+  },
+  {
+    title: "Evidence-Based Suggestions",
+    description:
+      "Clinical guidelines relevant to the presenting complaint surfaced after each session — from NICE (UK) and USPSTF (US) guidelines, with citations.",
+  },
+  {
+    title: "AI Chat per Encounter",
+    description:
+      "Ask follow-up questions, request alternative formulations, or query the transcript — with full encounter context available to the AI.",
   },
 ];
 
@@ -37,9 +73,12 @@ export default function Features() {
 
           {/* Grid */}
           <div className="lg:pl-12 py-12 lg:py-16">
-            <h2 className="text-3xl font-bold text-black tracking-tight mb-10">
-              The full documentation workflow, automated.
+            <h2 className="text-3xl font-bold text-black tracking-tight mb-2">
+              The complete clinical documentation workflow.
             </h2>
+            <p className="text-black/40 text-sm mb-10">
+              Everything from transcription to billing codes and compliance letters — automated.
+            </p>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 border border-black/10">
               {features.map((f, i) => (
                 <div
@@ -47,7 +86,7 @@ export default function Features() {
                   className="p-6 border-r border-b border-black/10 flex flex-col gap-2"
                   style={{
                     borderRight: (i + 1) % 3 === 0 ? "none" : undefined,
-                    borderBottom: i >= features.length - 3 ? "none" : undefined,
+                    borderBottom: i >= features.length - (features.length % 3 || 3) ? "none" : undefined,
                   }}
                 >
                   <h3 className="font-semibold text-black text-sm">{f.title}</h3>
