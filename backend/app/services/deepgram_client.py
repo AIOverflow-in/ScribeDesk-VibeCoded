@@ -1,10 +1,15 @@
 import asyncio
 import json
 import logging
+import ssl
+import certifi
 from typing import Callable, Awaitable, Optional
 import websockets
 import httpx
 from app.config import settings
+
+# Use certifi's CA bundle so websockets can verify Deepgram's TLS cert on macOS/Linux
+_ssl_context = ssl.create_default_context(cafile=certifi.where())
 
 logger = logging.getLogger(__name__)
 
@@ -119,7 +124,7 @@ class DeepgramConnection:
         url = f"{DEEPGRAM_WS_URL}?{params}"
         headers = {"Authorization": f"Token {settings.deepgram_api_key}"}
 
-        self._ws = await websockets.connect(url, extra_headers=headers, ping_interval=20)
+        self._ws = await websockets.connect(url, extra_headers=headers, ping_interval=20, ssl=_ssl_context)
         self._connected = True
         self._receive_task = asyncio.create_task(self._receive_loop())
         logger.info("Deepgram connection established")
