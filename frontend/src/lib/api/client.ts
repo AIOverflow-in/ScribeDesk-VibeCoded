@@ -42,7 +42,7 @@ export function getRefreshToken(): string | null {
   return refreshToken;
 }
 
-async function tryRefresh(): Promise<boolean> {
+export async function tryRefresh(): Promise<boolean> {
   const rt = getRefreshToken();
   if (!rt) return false;
   try {

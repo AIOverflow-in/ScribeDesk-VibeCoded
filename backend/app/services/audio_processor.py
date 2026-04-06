@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import time
 from datetime import datetime
 from beanie.odm.fields import PydanticObjectId
 from app.core.websocket_manager import ConnectionManager
@@ -32,6 +33,11 @@ class AudioProcessor:
         self._analysis_task: asyncio.Task | None = None
         self._analysis_in_flight = False
         self._paused = False
+        self.last_audio_at: float = time.monotonic()
+
+    @property
+    def idle_seconds(self) -> float:
+        return time.monotonic() - self.last_audio_at
 
     async def start(self):
         self._deepgram = DeepgramConnection(
@@ -45,6 +51,7 @@ class AudioProcessor:
         logger.info(f"AudioProcessor started for encounter {self.encounter_id}")
 
     async def feed(self, audio_chunk: bytes):
+        self.last_audio_at = time.monotonic()
         await self.audio_queue.put(audio_chunk)
 
     def pause(self):

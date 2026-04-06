@@ -1,5 +1,6 @@
 import { WSMessage } from "../types";
 import { getWSUrl } from "../api/client";
+import { tryRefresh } from "../api/client";
 import { AudioRecorder } from "./AudioRecorder";
 
 type MessageHandler = (msg: WSMessage) => void;
@@ -8,6 +9,7 @@ export class WSClient {
   private ws: WebSocket | null = null;
   private encounterId: string;
   private onMessage: MessageHandler;
+  private onAuthFailed?: () => void;
   private reconnectDelay = 1000;
   private maxDelay = 30000;
   private shouldReconnect = true;
@@ -15,11 +17,18 @@ export class WSClient {
   private offlineBuffer: ArrayBuffer[] = [];
   private isOnline = false;
   private recorder: AudioRecorder | null = null;
+  private _authRetried = false;
 
-  constructor(encounterId: string, onMessage: MessageHandler, recorder?: AudioRecorder) {
+  constructor(
+    encounterId: string,
+    onMessage: MessageHandler,
+    recorder?: AudioRecorder,
+    onAuthFailed?: () => void,
+  ) {
     this.encounterId = encounterId;
     this.onMessage = onMessage;
     this.recorder = recorder ?? null;
+    this.onAuthFailed = onAuthFailed;
   }
 
   connect() {
@@ -33,6 +42,7 @@ export class WSClient {
 
     this.ws.onopen = () => {
       this.reconnectDelay = 1000;
+      this._authRetried = false;
       this.isOnline = true;
       console.log("[WS] Connected:", this.encounterId);
 
@@ -62,7 +72,28 @@ export class WSClient {
     this.ws.onclose = (e) => {
       this.isOnline = false;
       console.log("[WS] Closed:", e.code, e.reason);
-      if (this.shouldReconnect && e.code !== 1000 && e.code !== 4001) {
+
+      if (e.code === 4001) {
+        // Auth failed — try a token refresh once before giving up
+        if (!this._authRetried) {
+          this._authRetried = true;
+          tryRefresh().then((ok) => {
+            if (ok && this.shouldReconnect) {
+              console.log("[WS] Token refreshed after 4001, reconnecting...");
+              this._scheduleReconnect();
+            } else {
+              console.warn("[WS] Token refresh failed or reconnect disabled — stopping");
+              this.onAuthFailed?.();
+            }
+          });
+        } else {
+          // Already tried refresh once, truly unauthorized
+          this.onAuthFailed?.();
+        }
+        return;
+      }
+
+      if (this.shouldReconnect && e.code !== 1000) {
         this._scheduleReconnect();
       }
     };

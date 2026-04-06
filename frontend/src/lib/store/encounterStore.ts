@@ -53,7 +53,12 @@ export const useEncounterStore = create<EncounterState>((set) => ({
   ...initial,
 
   setPatient: (patient) => set({ patient }),
-  setEncounter: (encounter) => set({ encounter }),
+  setEncounter: (encounter) => {
+    if (encounter !== null && typeof window !== "undefined") {
+      sessionStorage.setItem("active_encounter_id", encounter.id);
+    }
+    set({ encounter });
+  },
   setConnected: (isConnected) => set({ isConnected }),
   setInterim: (interimText) => set({ interimText }),
   setSegments: (segments) => set({ segments }),
@@ -77,5 +82,10 @@ export const useEncounterStore = create<EncounterState>((set) => ({
   setProcessing: (isProcessing) => set({ isProcessing }),
   setRecordingStatus: (recordingStatus) => set({ recordingStatus }),
 
-  reset: () => set(initial),
+  reset: () => {
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("active_encounter_id");
+    }
+    set(initial);
+  },
 }));

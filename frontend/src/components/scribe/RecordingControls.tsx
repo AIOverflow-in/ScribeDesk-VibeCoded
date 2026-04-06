@@ -34,6 +34,15 @@ export function RecordingControls({ templateId, language = "en" }: RecordingCont
   const [elapsed, setElapsed] = useState(0);
   const [transitioning, setTransitioning] = useState(false);
 
+  // Keep a ref to the latest status so unmount cleanup reads the current value
+  const statusRef = useRef(status);
+  useEffect(() => { statusRef.current = status; }, [status]);
+
+  // Keep a ref to the latest encounter for unmount cleanup
+  const encounterRef = useRef(encounter);
+  useEffect(() => { encounterRef.current = encounter; }, [encounter]);
+
+  // ─── Elapsed timer ───────────────────────────────────────────────────
   useEffect(() => {
     if (status !== "recording") return;
     if (startTimeRef.current === null) startTimeRef.current = Date.now() - elapsed * 1000;
@@ -43,6 +52,53 @@ export function RecordingControls({ templateId, language = "en" }: RecordingCont
     return () => clearInterval(id);
   }, [status]);
 
+  // ─── Unmount cleanup ─────────────────────────────────────────────────
+  // Stops the mic and disconnects WS when the user navigates away.
+  // The backend's finally block will auto-pause the encounter in DB.
+  useEffect(() => {
+    return () => {
+      const s = statusRef.current;
+      if (s === "recording" || s === "paused") {
+        wsRef.current?.sendControl("PAUSE"); // best-effort before socket closes
+      }
+      recorderRef.current?.stop();  // releases mic tracks — browser mic indicator off
+      wsRef.current?.disconnect();  // code 1000 → backend auto-pauses encounter
+      recorderRef.current = null;
+      wsRef.current = null;
+    };
+  }, []);
+
+  // ─── beforeunload warning ────────────────────────────────────────────
+  // Shows the browser's native "Leave site?" dialog when recording is active.
+  useEffect(() => {
+    if (status !== "recording" && status !== "paused") return;
+    const handler = (e: BeforeUnloadEvent) => {
+      e.preventDefault();
+      e.returnValue = "";
+    };
+    window.addEventListener("beforeunload", handler);
+    return () => window.removeEventListener("beforeunload", handler);
+  }, [status]);
+
+  // ─── visibilitychange auto-pause ─────────────────────────────────────
+  // Auto-pauses when the doctor switches to another tab.
+  const wasAutoPaused = useRef(false);
+  useEffect(() => {
+    const handler = () => {
+      if (document.hidden && statusRef.current === "recording") {
+        pauseRecording();
+        wasAutoPaused.current = true;
+      } else if (!document.hidden && wasAutoPaused.current) {
+        toast.info("Recording was paused while you were away — tap Resume to continue");
+        wasAutoPaused.current = false;
+      }
+    };
+    document.addEventListener("visibilitychange", handler);
+    return () => document.removeEventListener("visibilitychange", handler);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ─── Message handler ─────────────────────────────────────────────────
   const handleMessage = (msg: WSMessage) => {
     switch (msg.type) {
       case "CONNECTED":
@@ -79,6 +135,7 @@ export function RecordingControls({ templateId, language = "en" }: RecordingCont
     }
   };
 
+  // ─── Recording actions ────────────────────────────────────────────────
   const startRecording = async () => {
     if (!patient) return;
     try {
@@ -88,7 +145,9 @@ export function RecordingControls({ templateId, language = "en" }: RecordingCont
       setElapsed(0);
       const recorder = new AudioRecorder((chunk) => wsRef.current?.sendAudio(chunk));
       recorderRef.current = recorder;
-      const ws = new WSClient(enc.id, handleMessage, recorder);
+      const ws = new WSClient(enc.id, handleMessage, recorder, () => {
+        toast.error("Session expired. Please log in again.");
+      });
       wsRef.current = ws;
       ws.connect();
       await recorder.start();
@@ -124,7 +183,9 @@ export function RecordingControls({ templateId, language = "en" }: RecordingCont
         setElapsed(0);
         const recorder = new AudioRecorder((chunk) => wsRef.current?.sendAudio(chunk));
         recorderRef.current = recorder;
-        const ws = new WSClient(encounter.id, handleMessage, recorder);
+        const ws = new WSClient(encounter.id, handleMessage, recorder, () => {
+          toast.error("Session expired. Please log in again.");
+        });
         wsRef.current = ws;
         ws.connect();
         await recorder.start();

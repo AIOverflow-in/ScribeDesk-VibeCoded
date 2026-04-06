@@ -1,8 +1,21 @@
+import asyncio
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.config import settings
 from app.database import connect_db, close_db
+
+
+async def _idle_cleanup_loop() -> None:
+    """Background task: clean up processors idle for > 2 hours every 10 minutes."""
+    from app.services.processor_registry import cleanup_idle_processors
+    while True:
+        await asyncio.sleep(600)
+        try:
+            await cleanup_idle_processors()
+        except Exception as e:
+            import logging
+            logging.getLogger(__name__).error(f"Idle processor cleanup error: {e}")
 
 
 @asynccontextmanager
@@ -16,8 +29,11 @@ async def lifespan(app: FastAPI):
     await seed_templates()
     await seed_admin()
     await seed_demo_data()
+    # Background tasks
+    cleanup_task = asyncio.create_task(_idle_cleanup_loop())
     yield
     # Shutdown
+    cleanup_task.cancel()
     await close_db()
 
 

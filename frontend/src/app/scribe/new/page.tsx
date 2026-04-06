@@ -33,6 +33,16 @@ function NewScribePageInner() {
   useEffect(() => {
     listTemplates().then(setTemplates).catch(console.error);
 
+    // Reload recovery: if sessionStorage has a stale active encounter and no resume param,
+    // redirect to the resume flow so the user can pick up where they left off.
+    if (!resumeId && typeof window !== "undefined") {
+      const storedId = sessionStorage.getItem("active_encounter_id");
+      if (storedId) {
+        router.replace(`/scribe/new?resume=${storedId}`);
+        return;
+      }
+    }
+
     if (resumeId) {
       // Resuming an existing paused/active encounter — load encounter + prior segments
       getEncounterDetail(resumeId)
@@ -48,6 +58,14 @@ function NewScribePageInner() {
           router.replace("/scribe/new");
         });
     } else {
+      // Belt-and-suspenders: if the store still holds an active/paused encounter, pause it
+      // before resetting (the backend's WS disconnect handler is the true guarantee).
+      const { encounter: currentEncounter, recordingStatus: currentStatus } = useEncounterStore.getState();
+      if (currentEncounter && (currentStatus === "recording" || currentStatus === "paused")) {
+        import("@/lib/api/encounters").then(({ pauseEncounter }) => {
+          pauseEncounter(currentEncounter.id).catch(console.error);
+        });
+      }
       reset();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps

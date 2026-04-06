@@ -7,6 +7,8 @@ import { EncounterListItem } from "@/lib/types";
 import { listEncounters } from "@/lib/api/encounters";
 import { Plus, ChevronRight, Mic, PlayCircle, Search, X } from "lucide-react";
 import { format, formatDuration, intervalToDuration, isThisWeek, isThisMonth } from "date-fns";
+import { useEncounterStore } from "@/lib/store/encounterStore";
+import { pauseEncounter } from "@/lib/api/encounters";
 
 function StatusBadge({ status }: { status: string }) {
   return (
@@ -36,6 +38,7 @@ type StatusFilter = "all" | "ACTIVE" | "PAUSED" | "FINISHED";
 
 export default function ScribePage() {
   const router = useRouter();
+  const { encounter: activeEncounter, recordingStatus } = useEncounterStore();
   const [encounters, setEncounters] = useState<EncounterListItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
@@ -64,6 +67,24 @@ export default function ScribePage() {
 
   const hasFilters = search || dateFilter !== "all" || statusFilter !== "all";
 
+  const handleNewScribe = async () => {
+    if (
+      activeEncounter &&
+      (recordingStatus === "recording" || recordingStatus === "paused")
+    ) {
+      const confirmed = window.confirm(
+        "You have an active recording session. Starting a new one will pause it. Continue?"
+      );
+      if (!confirmed) return;
+      try {
+        await pauseEncounter(activeEncounter.id);
+      } catch {
+        // best-effort; backend auto-pauses on WS disconnect anyway
+      }
+    }
+    router.push("/scribe/new");
+  };
+
   return (
     <AppShell>
       <div className="p-6 max-w-4xl mx-auto">
@@ -72,7 +93,7 @@ export default function ScribePage() {
             <h1 className="text-2xl font-bold">Scribe Sessions</h1>
             <p className="text-sm text-gray-500 mt-0.5">All recorded consultations</p>
           </div>
-          <Button onClick={() => router.push("/scribe/new")} className="gap-2 bg-black text-white hover:bg-gray-800">
+          <Button onClick={handleNewScribe} className="gap-2 bg-black text-white hover:bg-gray-800">
             <Plus className="w-4 h-4" />
             New Scribe
           </Button>
@@ -138,7 +159,7 @@ export default function ScribePage() {
             <Mic className="w-10 h-10 mx-auto mb-3 text-gray-300" />
             <p className="font-medium text-gray-700">No sessions yet</p>
             <p className="text-sm text-gray-400 mt-1 mb-4">Start your first recording session</p>
-            <Button onClick={() => router.push("/scribe/new")} className="gap-2 bg-black text-white hover:bg-gray-800">
+            <Button onClick={handleNewScribe} className="gap-2 bg-black text-white hover:bg-gray-800">
               <Plus className="w-4 h-4" /> New Scribe
             </Button>
           </div>
