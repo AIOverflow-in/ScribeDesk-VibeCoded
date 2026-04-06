@@ -39,6 +39,9 @@ async def start_encounter(doctor_id: PydanticObjectId, patient_id: str, template
 
 async def transition_encounter(encounter_id: str, doctor_id: PydanticObjectId, new_status: str) -> Encounter:
     encounter = await get_encounter(encounter_id, doctor_id)
+    # Idempotent: already in the desired state — just return, no error
+    if encounter.status == new_status:
+        return encounter
     allowed = VALID_TRANSITIONS.get(encounter.status, [])
     if new_status not in allowed:
         raise ConflictError(f"Cannot transition from {encounter.status} to {new_status}")

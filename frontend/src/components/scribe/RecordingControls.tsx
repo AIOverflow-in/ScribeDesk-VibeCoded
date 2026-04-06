@@ -32,6 +32,7 @@ export function RecordingControls({ templateId, language = "en" }: RecordingCont
   const wsRef = useRef<WSClient | null>(null);
   const startTimeRef = useRef<number | null>(null);
   const [elapsed, setElapsed] = useState(0);
+  const [transitioning, setTransitioning] = useState(false);
 
   useEffect(() => {
     if (status !== "recording") return;
@@ -98,15 +99,23 @@ export function RecordingControls({ templateId, language = "en" }: RecordingCont
   };
 
   const pauseRecording = async () => {
-    if (!encounter) return;
-    recorderRef.current?.pause();
-    wsRef.current?.sendControl("PAUSE");
-    await encounterApi.pauseEncounter(encounter.id);
-    setStatus("paused");
+    if (!encounter || transitioning) return;
+    setTransitioning(true);
+    try {
+      recorderRef.current?.pause();
+      wsRef.current?.sendControl("PAUSE");
+      await encounterApi.pauseEncounter(encounter.id);
+      setStatus("paused");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to pause");
+    } finally {
+      setTransitioning(false);
+    }
   };
 
   const resumeRecording = async () => {
-    if (!encounter) return;
+    if (!encounter || transitioning) return;
+    setTransitioning(true);
 
     // Refs are gone (navigated away and came back) — do a full reconnect
     if (!wsRef.current || !recorderRef.current) {
@@ -123,14 +132,22 @@ export function RecordingControls({ templateId, language = "en" }: RecordingCont
         setStatus("recording");
       } catch (e: unknown) {
         toast.error(e instanceof Error ? e.message : "Failed to reconnect");
+      } finally {
+        setTransitioning(false);
       }
       return;
     }
 
-    recorderRef.current.resume();
-    wsRef.current.sendControl("RESUME");
-    await encounterApi.resumeEncounter(encounter.id);
-    setStatus("recording");
+    try {
+      recorderRef.current.resume();
+      wsRef.current.sendControl("RESUME");
+      await encounterApi.resumeEncounter(encounter.id);
+      setStatus("recording");
+    } catch (e: unknown) {
+      toast.error(e instanceof Error ? e.message : "Failed to resume");
+    } finally {
+      setTransitioning(false);
+    }
   };
 
   const finishRecording = async () => {
@@ -186,15 +203,17 @@ export function RecordingControls({ templateId, language = "en" }: RecordingCont
           <>
             <button
               onClick={pauseRecording}
+              disabled={transitioning}
               title="Pause recording"
-              className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center shadow hover:bg-gray-800 transition-colors"
+              className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center shadow hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Pause className="w-6 h-6" />
+              {transitioning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Pause className="w-6 h-6" />}
             </button>
             <button
               onClick={finishRecording}
+              disabled={transitioning}
               title="Finish & analyze"
-              className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600"
+              className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Square className="w-4 h-4" />
             </button>
@@ -206,15 +225,17 @@ export function RecordingControls({ templateId, language = "en" }: RecordingCont
           <>
             <button
               onClick={resumeRecording}
+              disabled={transitioning}
               title="Resume recording"
-              className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center shadow hover:bg-gray-800 transition-colors"
+              className="w-14 h-14 rounded-full bg-black text-white flex items-center justify-center shadow hover:bg-gray-800 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              <Mic className="w-6 h-6" />
+              {transitioning ? <Loader2 className="w-5 h-5 animate-spin" /> : <Mic className="w-6 h-6" />}
             </button>
             <button
               onClick={finishRecording}
+              disabled={transitioning}
               title="Finish & analyze"
-              className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600"
+              className="w-10 h-10 rounded-full border border-gray-200 flex items-center justify-center hover:bg-gray-50 transition-colors text-gray-600 disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <Square className="w-4 h-4" />
             </button>
