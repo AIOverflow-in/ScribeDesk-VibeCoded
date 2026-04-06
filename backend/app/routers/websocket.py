@@ -44,11 +44,15 @@ async def websocket_session(
         is_reconnect = True
         logger.info(f"[WS] Reconnected to existing processor for {encounter_id}")
     else:
+        from app.models.encounter import Encounter as EncounterModel
+        enc = await EncounterModel.get(PydanticObjectId(encounter_id))
+        lang = enc.language if enc and enc.language else "en"
         processor = AudioProcessor(
             encounter_id=encounter_id,
             doctor_id=doctor.id,
             ws_manager=ws_manager,
             specialization=doctor.specialization or "General Physician",
+            language=lang,
         )
         _processors[encounter_id] = processor
         await processor.start()

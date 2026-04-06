@@ -12,6 +12,8 @@ class Doctor(Document):
     password_hash: str
     specialization: Optional[str] = None
     signature_url: Optional[str] = None
+    clinic_logo_url: Optional[str] = None
+    letterhead_text: Optional[str] = None  # custom clinic name / address for letters
     role: Literal["DOCTOR", "SUPER_ADMIN"] = "DOCTOR"
     is_active: bool = True
     created_at: datetime = Field(default_factory=datetime.utcnow)

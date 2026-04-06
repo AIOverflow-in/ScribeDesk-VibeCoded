@@ -19,11 +19,12 @@ class AudioProcessor:
     handles transcript events, and runs 30s periodic LLM analysis.
     """
 
-    def __init__(self, encounter_id: str, doctor_id: PydanticObjectId, ws_manager: ConnectionManager, specialization: str = "General Physician"):
+    def __init__(self, encounter_id: str, doctor_id: PydanticObjectId, ws_manager: ConnectionManager, specialization: str = "General Physician", language: str = "en"):
         self.encounter_id = encounter_id
         self.doctor_id = doctor_id
         self.ws_manager = ws_manager
         self.specialization = specialization
+        self.language = language
         self.audio_queue: asyncio.Queue[bytes | None] = asyncio.Queue()
         self.accumulated_segments: list[str] = []
         self._deepgram: DeepgramConnection | None = None
@@ -36,6 +37,7 @@ class AudioProcessor:
         self._deepgram = DeepgramConnection(
             on_interim=self._on_interim,
             on_final=self._on_final,
+            language=self.language,
         )
         await self._deepgram.connect()
         self._proxy_task = asyncio.create_task(self._proxy_audio())
@@ -90,6 +92,7 @@ class AudioProcessor:
         self._deepgram = DeepgramConnection(
             on_interim=self._on_interim,
             on_final=self._on_final,
+            language=self.language,
         )
         await self._deepgram.connect()
 

@@ -5,6 +5,8 @@ export interface Doctor {
   phone?: string;
   specialization?: string;
   signature_url?: string;
+  clinic_logo_url?: string;
+  letterhead_text?: string;
   role: "DOCTOR" | "SUPER_ADMIN";
 }
 
@@ -67,6 +69,22 @@ export interface Vitals {
   respiratory_rate?: string;
 }
 
+export interface BillingCode {
+  code: string;
+  description: string;
+  type: "ICD-10" | "CPT";
+  confidence: "high" | "medium" | "low";
+  accepted: boolean;
+}
+
+export interface DrugInteraction {
+  drug_a: string;
+  drug_b: string;
+  severity: "Minor" | "Moderate" | "Major";
+  mechanism: string;
+  management: string;
+}
+
 export interface ClinicalSummary {
   id?: string;
   chief_complaint?: string;
@@ -77,6 +95,12 @@ export interface ClinicalSummary {
   summary_text: string;
   vitals?: Vitals;
   diagnosis: string[];
+  billing_codes?: BillingCode[];
+  patient_summary?: string;
+  drug_interactions?: DrugInteraction[];
+  attested?: boolean;
+  attested_at?: string;
+  evidence?: string[];
 }
 
 export interface Medication {
@@ -127,11 +151,36 @@ export interface Template {
   created_at: string;
 }
 
+export interface DifferentialDiagnosis {
+  diagnosis: string;
+  rationale: string;
+}
+
 export interface PartialAnalysis {
   key_points: string[];
   symptoms: string[];
   possible_diagnoses: string[];
   items_to_clarify: string[];
+  differential_diagnoses?: DifferentialDiagnosis[];
+  red_flags?: string[];
+  suggested_workup?: string[];
+}
+
+export interface Letter {
+  id: string;
+  encounter_id: string;
+  letter_type: "referral" | "sick_note" | "patient_instructions";
+  content: string;
+  created_at: string;
+}
+
+export interface PreVisitBriefData {
+  has_history: boolean;
+  last_visit_summary?: string;
+  active_diagnoses: string[];
+  current_medications: string[];
+  pending_follow_ups: string[];
+  notable_flags: string[];
 }
 
 export interface FinalAnalysis {
@@ -190,6 +239,7 @@ export interface DashboardMetrics {
   reports_generated: number;
   pending_tasks: number;
   completed_tasks: number;
+  time_saved_hours: number;
   recent_encounters: Array<{
     id: string;
     patient_name: string;

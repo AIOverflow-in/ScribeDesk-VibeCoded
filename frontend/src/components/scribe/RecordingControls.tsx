@@ -18,9 +18,10 @@ function formatElapsed(seconds: number): string {
 
 interface RecordingControlsProps {
   templateId?: string;
+  language?: string;
 }
 
-export function RecordingControls({ templateId }: RecordingControlsProps = {}) {
+export function RecordingControls({ templateId, language = "en" }: RecordingControlsProps = {}) {
   const {
     patient, encounter, setEncounter, setConnected,
     addSegment, setInterim, setPartialAnalysis, applyFinalAnalysis, setProcessing,
@@ -80,7 +81,7 @@ export function RecordingControls({ templateId }: RecordingControlsProps = {}) {
   const startRecording = async () => {
     if (!patient) return;
     try {
-      const enc = await encounterApi.startEncounter(patient.id, templateId);
+      const enc = await encounterApi.startEncounter(patient.id, templateId, language);
       setEncounter(enc);
       startTimeRef.current = Date.now();
       setElapsed(0);

@@ -43,6 +43,9 @@ async def get_dashboard_metrics(doctor_id: PydanticObjectId) -> dict:
             "created_at": enc.created_at.isoformat(),
         })
 
+    # Time saved estimate: 3.5 hours per finished encounter (industry average)
+    time_saved_hours = round(finished_encounters * 3.5, 1)
+
     return {
         "total_patients": total_patients,
         "total_encounters": total_encounters,
@@ -50,5 +53,6 @@ async def get_dashboard_metrics(doctor_id: PydanticObjectId) -> dict:
         "reports_generated": reports_generated,
         "pending_tasks": pending_tasks,
         "completed_tasks": completed_tasks,
+        "time_saved_hours": time_saved_hours,
         "recent_encounters": recent_list,
     }

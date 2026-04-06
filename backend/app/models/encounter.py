@@ -15,6 +15,9 @@ class Encounter(Document):
     transcript_text: str = ""
     audio_url: Optional[str] = None
     template_id: Optional[PydanticObjectId] = None
+    language: str = "en"  # BCP-47 language code for transcription
+    share_token: Optional[str] = None  # for read-only sharing
+    shared_with: list = Field(default_factory=list)  # list of doctor_ids
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:

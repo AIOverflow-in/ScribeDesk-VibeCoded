@@ -32,5 +32,7 @@ async def me(current_user: Doctor = Depends(get_current_user)):
         "phone": current_user.phone,
         "specialization": current_user.specialization,
         "signature_url": current_user.signature_url,
+        "clinic_logo_url": current_user.clinic_logo_url,
+        "letterhead_text": current_user.letterhead_text,
         "role": current_user.role,
     }

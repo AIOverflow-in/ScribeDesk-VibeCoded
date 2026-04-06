@@ -147,6 +147,7 @@ export function ClinicalSummaryPanel() {
     return (
       <div className="space-y-3 text-sm">
         <p className="text-[11px] uppercase tracking-widest text-gray-400 font-medium">Live Analysis</p>
+
         {partialAnalysis.key_points.length > 0 && (
           <div>
             <p className="font-medium text-xs text-gray-500 mb-1 uppercase tracking-wide">Key Points</p>
@@ -160,12 +161,53 @@ export function ClinicalSummaryPanel() {
             </ul>
           </div>
         )}
-        {partialAnalysis.possible_diagnoses.length > 0 && (
+
+        {(partialAnalysis.differential_diagnoses && partialAnalysis.differential_diagnoses.length > 0) ? (
+          <div>
+            <p className="font-medium text-xs text-gray-500 mb-1.5 uppercase tracking-wide">Differential Diagnoses</p>
+            <div className="space-y-1.5">
+              {partialAnalysis.differential_diagnoses.map((d, i) => (
+                <div key={i} className="flex gap-2 text-xs">
+                  <span className="w-5 h-5 rounded-full bg-gray-100 text-gray-500 flex items-center justify-center font-semibold shrink-0">{i + 1}</span>
+                  <div>
+                    <span className="font-medium text-gray-800">{d.diagnosis}</span>
+                    {d.rationale && <p className="text-gray-500 mt-0.5">{d.rationale}</p>}
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        ) : partialAnalysis.possible_diagnoses.length > 0 && (
           <div>
             <p className="font-medium text-xs text-gray-500 mb-1.5 uppercase tracking-wide">Possible Diagnoses</p>
             <div className="flex flex-wrap gap-1.5">
               {partialAnalysis.possible_diagnoses.map((d, i) => (
                 <span key={i} className="px-2 py-0.5 border border-gray-300 rounded text-xs text-gray-700">{d}</span>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {partialAnalysis.red_flags && partialAnalysis.red_flags.length > 0 && (
+          <div className="bg-red-50 border border-red-100 rounded-lg p-2.5">
+            <p className="font-medium text-xs text-red-600 mb-1 uppercase tracking-wide">Red Flags</p>
+            <ul className="space-y-0.5">
+              {partialAnalysis.red_flags.map((f, i) => (
+                <li key={i} className="text-red-700 text-xs flex gap-1.5">
+                  <span className="text-red-400 shrink-0">!</span>
+                  {f}
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+
+        {partialAnalysis.suggested_workup && partialAnalysis.suggested_workup.length > 0 && (
+          <div>
+            <p className="font-medium text-xs text-gray-500 mb-1.5 uppercase tracking-wide">Suggested Workup</p>
+            <div className="flex flex-wrap gap-1.5">
+              {partialAnalysis.suggested_workup.map((w, i) => (
+                <span key={i} className="px-2 py-0.5 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700">{w}</span>
               ))}
             </div>
           </div>

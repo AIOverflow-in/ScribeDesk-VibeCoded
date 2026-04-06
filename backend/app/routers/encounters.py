@@ -1,5 +1,6 @@
 import asyncio
 import logging
+import secrets
 from fastapi import APIRouter, Depends, File, UploadFile, HTTPException
 from pydantic import BaseModel
 from typing import Optional
@@ -7,11 +8,15 @@ from app.schemas.encounter import StartEncounterRequest
 from app.services import encounter_service
 from app.services.deepgram_client import transcribe_prerecorded
 from app.services.llm_service import chat_completion, parse_json_response
-from app.services.prompts import prescription_messages, clinical_summary_messages, vitals_extraction_messages
+from app.services.prompts import (
+    prescription_messages, clinical_summary_messages, vitals_extraction_messages,
+    billing_extraction_messages, patient_summary_messages, drug_interaction_messages,
+    evidence_messages, pre_visit_messages,
+)
 from app.dependencies import get_current_user
 from app.models.doctor import Doctor
 from app.models.patient import Patient
-from app.models.clinical_summary import ClinicalSummary, Vitals
+from app.models.clinical_summary import ClinicalSummary, Vitals, BillingCode, DrugInteraction
 from app.models.prescription import Prescription, Medication
 from app.models.transcript_segment import TranscriptSegment
 from app.models.template import Template
@@ -102,6 +107,12 @@ async def get_encounter_detail(
             "summary_text": summary.summary_text,
             "diagnosis": summary.diagnosis,
             "vitals": summary.vitals.model_dump() if summary.vitals else None,
+            "billing_codes": [c.model_dump() for c in summary.billing_codes],
+            "patient_summary": summary.patient_summary,
+            "drug_interactions": [i.model_dump() for i in summary.drug_interactions],
+            "attested": summary.attested,
+            "attested_at": summary.attested_at.isoformat() if summary.attested_at else None,
+            "evidence": summary.evidence,
         }
 
     medications = []
@@ -145,7 +156,7 @@ async def start_encounter(
     body: StartEncounterRequest,
     current_user: Doctor = Depends(get_current_user),
 ):
-    encounter = await encounter_service.start_encounter(current_user.id, body.patient_id, body.template_id)
+    encounter = await encounter_service.start_encounter(current_user.id, body.patient_id, body.template_id, body.language or "en")
     return _enc_dict(encounter)
 
 
@@ -394,3 +405,359 @@ async def _process_uploaded_audio(encounter_id: str, audio_bytes: bytes):
         await encounter.save()
 
     logger.info(f"Uploaded audio added {new_count} gap segments for {encounter_id}")
+
+
+# ─── Billing Codes ────────────────────────────────────────────────────────────
+
+@router.post("/{encounter_id}/generate-billing-codes", response_model=list)
+async def generate_billing_codes(
+    encounter_id: str,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Generate ICD-10 and CPT billing code suggestions from the encounter."""
+    encounter = await encounter_service.get_encounter(encounter_id, current_user.id)
+    if not encounter.transcript_text or not encounter.transcript_text.strip():
+        raise HTTPException(status_code=400, detail="No transcript available")
+
+    summary = await ClinicalSummary.find_one(
+        ClinicalSummary.encounter_id == PydanticObjectId(encounter_id)
+    )
+    summary_str = summary.summary_text if summary else ""
+
+    text = await chat_completion(
+        billing_extraction_messages(encounter.transcript_text, summary_str),
+        json_mode=True,
+    )
+    result = await parse_json_response(text)
+    codes = [
+        BillingCode(**c) for c in result.get("billing_codes", [])
+        if c.get("code") and c.get("description")
+    ]
+
+    if summary:
+        summary.billing_codes = codes
+        await summary.save()
+
+    return [c.model_dump() for c in codes]
+
+
+@router.patch("/{encounter_id}/billing-codes/{code}/accept", response_model=dict)
+async def toggle_billing_code(
+    encounter_id: str,
+    code: str,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Toggle accepted state of a billing code."""
+    summary = await ClinicalSummary.find_one(
+        ClinicalSummary.encounter_id == PydanticObjectId(encounter_id)
+    )
+    if not summary:
+        raise HTTPException(status_code=404, detail="No summary found")
+    for bc in summary.billing_codes:
+        if bc.code == code:
+            bc.accepted = not bc.accepted
+            break
+    await summary.save()
+    return {"ok": True}
+
+
+# ─── Patient-Facing Summary ───────────────────────────────────────────────────
+
+@router.post("/{encounter_id}/generate-patient-summary", response_model=dict)
+async def generate_patient_summary(
+    encounter_id: str,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Generate a plain-English after-visit summary for the patient."""
+    encounter = await encounter_service.get_encounter(encounter_id, current_user.id)
+    if not encounter.transcript_text or not encounter.transcript_text.strip():
+        raise HTTPException(status_code=400, detail="No transcript available")
+
+    summary = await ClinicalSummary.find_one(
+        ClinicalSummary.encounter_id == PydanticObjectId(encounter_id)
+    )
+    prescription = await Prescription.find_one(
+        Prescription.encounter_id == PydanticObjectId(encounter_id)
+    )
+
+    summary_str = ""
+    if summary:
+        parts = [
+            f"Chief Complaint: {summary.chief_complaint or ''}",
+            f"Assessment: {summary.assessment or ''}",
+            f"Plan: {summary.plan or ''}",
+            f"Diagnoses: {', '.join(summary.diagnosis)}",
+        ]
+        summary_str = "\n".join(parts)
+
+    medications_str = ""
+    if prescription:
+        medications_str = "\n".join(
+            f"{m.name} {m.dosage} {m.frequency} for {m.duration}" for m in prescription.medications
+        )
+
+    text = await chat_completion(
+        patient_summary_messages(encounter.transcript_text, summary_str, medications_str),
+        json_mode=True,
+    )
+    result = await parse_json_response(text)
+    patient_summary_text = result.get("patient_summary", "")
+
+    if summary:
+        summary.patient_summary = patient_summary_text
+        await summary.save()
+
+    return {"patient_summary": patient_summary_text}
+
+
+# ─── Drug Interaction Check ───────────────────────────────────────────────────
+
+@router.post("/{encounter_id}/check-drug-interactions", response_model=list)
+async def check_drug_interactions(
+    encounter_id: str,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Check for drug interactions across all prescribed medications."""
+    await encounter_service.get_encounter(encounter_id, current_user.id)
+
+    prescription = await Prescription.find_one(
+        Prescription.encounter_id == PydanticObjectId(encounter_id)
+    )
+    if not prescription or len(prescription.medications) < 2:
+        return []
+
+    med_names = [m.name for m in prescription.medications]
+    text = await chat_completion(drug_interaction_messages(med_names), json_mode=True)
+    result = await parse_json_response(text)
+    interactions = [
+        DrugInteraction(**i) for i in result.get("interactions", [])
+        if i.get("drug_a") and i.get("drug_b")
+    ]
+
+    summary = await ClinicalSummary.find_one(
+        ClinicalSummary.encounter_id == PydanticObjectId(encounter_id)
+    )
+    if summary:
+        summary.drug_interactions = interactions
+        await summary.save()
+
+    return [i.model_dump() for i in interactions]
+
+
+# ─── Evidence-Based Suggestions ───────────────────────────────────────────────
+
+@router.post("/{encounter_id}/generate-evidence", response_model=list)
+async def generate_evidence(
+    encounter_id: str,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Generate evidence-based clinical recommendations for the diagnoses."""
+    await encounter_service.get_encounter(encounter_id, current_user.id)
+
+    summary = await ClinicalSummary.find_one(
+        ClinicalSummary.encounter_id == PydanticObjectId(encounter_id)
+    )
+    if not summary or not summary.diagnosis:
+        return []
+
+    specialization = current_user.specialization or "General Physician"
+    text = await chat_completion(
+        evidence_messages(summary.diagnosis, specialization),
+        json_mode=True,
+    )
+    result = await parse_json_response(text)
+    ev = result.get("evidence", [])
+
+    summary.evidence = ev
+    await summary.save()
+    return ev
+
+
+# ─── Attestation ──────────────────────────────────────────────────────────────
+
+@router.post("/{encounter_id}/attest", response_model=dict)
+async def attest_encounter(
+    encounter_id: str,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Doctor attests / signs off on the AI-generated clinical note."""
+    await encounter_service.get_encounter(encounter_id, current_user.id)
+
+    from datetime import datetime
+    summary = await ClinicalSummary.find_one(
+        ClinicalSummary.encounter_id == PydanticObjectId(encounter_id)
+    )
+    if not summary:
+        raise HTTPException(status_code=404, detail="No clinical summary to attest")
+
+    summary.attested = True
+    summary.attested_at = datetime.utcnow()
+    await summary.save()
+    return {"attested": True, "attested_at": summary.attested_at.isoformat()}
+
+
+# ─── Sharing ──────────────────────────────────────────────────────────────────
+
+@router.post("/{encounter_id}/share", response_model=dict)
+async def share_encounter(
+    encounter_id: str,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Generate a read-only share token for this encounter."""
+    encounter = await encounter_service.get_encounter(encounter_id, current_user.id)
+    if not encounter.share_token:
+        encounter.share_token = secrets.token_urlsafe(24)
+        await encounter.save()
+    return {"share_token": encounter.share_token}
+
+
+@router.get("/shared/{token}", response_model=dict)
+async def get_shared_encounter(token: str):
+    """Public read-only view of a shared encounter (no auth required)."""
+    encounter = await Encounter.find_one(Encounter.share_token == token)
+    if not encounter:
+        raise HTTPException(status_code=404, detail="Shared encounter not found or link expired")
+
+    patient = await Patient.get(encounter.patient_id)
+    summary = await ClinicalSummary.find_one(
+        ClinicalSummary.encounter_id == encounter.id
+    )
+    prescription = await Prescription.find_one(
+        Prescription.encounter_id == encounter.id
+    )
+
+    summary_data = None
+    if summary:
+        summary_data = {
+            "chief_complaint": summary.chief_complaint,
+            "assessment": summary.assessment,
+            "plan": summary.plan,
+            "diagnosis": summary.diagnosis,
+        }
+
+    return {
+        "patient_name": patient.name if patient else "Patient",
+        "start_time": encounter.start_time.isoformat() if encounter.start_time else None,
+        "summary": summary_data,
+        "medications": [
+            {"name": m.name, "dosage": m.dosage, "frequency": m.frequency, "duration": m.duration}
+            for m in prescription.medications
+        ] if prescription else [],
+    }
+
+
+# ─── EHR Copy Helper ──────────────────────────────────────────────────────────
+
+@router.get("/{encounter_id}/ehr-summary", response_model=dict)
+async def get_ehr_summary(
+    encounter_id: str,
+    format: str = "plain",
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Return the clinical note formatted for pasting into an EHR."""
+    await encounter_service.get_encounter(encounter_id, current_user.id)
+
+    summary = await ClinicalSummary.find_one(
+        ClinicalSummary.encounter_id == PydanticObjectId(encounter_id)
+    )
+    prescription = await Prescription.find_one(
+        Prescription.encounter_id == PydanticObjectId(encounter_id)
+    )
+
+    if not summary:
+        raise HTTPException(status_code=404, detail="No clinical summary available")
+
+    vitals_str = ""
+    if summary.vitals:
+        v = summary.vitals
+        parts = []
+        if v.blood_pressure: parts.append(f"BP: {v.blood_pressure}")
+        if v.heart_rate: parts.append(f"HR: {v.heart_rate}")
+        if v.temperature: parts.append(f"Temp: {v.temperature}")
+        if v.spo2: parts.append(f"SpO2: {v.spo2}")
+        if v.weight: parts.append(f"Wt: {v.weight}")
+        vitals_str = " | ".join(parts)
+
+    meds_str = ""
+    if prescription:
+        meds_str = "\n".join(
+            f"  - {m.name} {m.dosage} {m.frequency} x {m.duration}"
+            for m in prescription.medications
+        )
+
+    plain = f"""CHIEF COMPLAINT:
+{summary.chief_complaint or 'N/A'}
+
+HISTORY OF PRESENT ILLNESS:
+{summary.history_of_present_illness or 'N/A'}
+
+PHYSICAL EXAMINATION:
+{summary.physical_examination or 'N/A'}
+
+VITALS:
+{vitals_str or 'Not recorded'}
+
+ASSESSMENT:
+{summary.assessment or 'N/A'}
+
+PLAN:
+{summary.plan or 'N/A'}
+
+DIAGNOSES:
+{', '.join(summary.diagnosis) if summary.diagnosis else 'None'}
+
+MEDICATIONS:
+{meds_str or 'None prescribed'}
+
+[Generated by ScribeDesk AI — requires physician review and attestation]"""
+
+    return {"format": format, "content": plain}
+
+
+# ─── Pre-Visit Brief ──────────────────────────────────────────────────────────
+
+@router.get("/pre-visit/{patient_id}", response_model=dict)
+async def get_pre_visit_brief(
+    patient_id: str,
+    current_user: Doctor = Depends(get_current_user),
+):
+    """Generate a pre-visit brief from the patient's past encounters."""
+    patient = await Patient.get(PydanticObjectId(patient_id))
+    if not patient or patient.doctor_id != current_user.id:
+        raise HTTPException(status_code=404, detail="Patient not found")
+
+    past_encounters = await Encounter.find(
+        Encounter.patient_id == PydanticObjectId(patient_id),
+        Encounter.status == "FINISHED",
+    ).sort(-Encounter.created_at).limit(5).to_list()
+
+    if not past_encounters:
+        return {"has_history": False, "last_visit_summary": None, "active_diagnoses": [], "current_medications": [], "pending_follow_ups": [], "notable_flags": []}
+
+    enc_data = []
+    for enc in past_encounters:
+        summary = await ClinicalSummary.find_one(
+            ClinicalSummary.encounter_id == enc.id
+        )
+        prescription = await Prescription.find_one(
+            Prescription.encounter_id == enc.id
+        )
+        meds_str = ""
+        if prescription:
+            meds_str = ", ".join(m.name for m in prescription.medications)
+        enc_data.append({
+            "date": enc.start_time.strftime("%B %d, %Y") if enc.start_time else "Unknown",
+            "chief_complaint": summary.chief_complaint if summary else None,
+            "assessment": summary.assessment if summary else None,
+            "plan": summary.plan if summary else None,
+            "diagnosis": summary.diagnosis if summary else [],
+            "medications": meds_str,
+        })
+
+    text = await chat_completion(
+        pre_visit_messages(patient.name, enc_data),
+        json_mode=True,
+    )
+    result = await parse_json_response(text)
+    result["has_history"] = True
+    return result

@@ -91,6 +91,12 @@ DEEPGRAM_PARAMS = {
 }
 
 
+SUPPORTED_LANGUAGES = {
+    "en": "en", "hi": "hi", "ar": "ar", "es": "es",
+    "fr": "fr", "de": "de", "zh": "zh-CN",
+}
+
+
 class DeepgramConnection:
     """Manages a single WebSocket connection to Deepgram."""
 
@@ -98,15 +104,18 @@ class DeepgramConnection:
         self,
         on_interim: Callable[[str, int], Awaitable[None]],
         on_final: Callable[[str, int, float, float], Awaitable[None]],
+        language: str = "en",
     ):
         self.on_interim = on_interim
         self.on_final = on_final
+        self.language = SUPPORTED_LANGUAGES.get(language, "en")
         self._ws: Optional[websockets.WebSocketClientProtocol] = None
         self._receive_task: Optional[asyncio.Task] = None
         self._connected = False
 
     async def connect(self):
-        params = "&".join(f"{k}={v}" for k, v in DEEPGRAM_PARAMS.items())
+        params_dict = {**DEEPGRAM_PARAMS, "language": self.language}
+        params = "&".join(f"{k}={v}" for k, v in params_dict.items())
         url = f"{DEEPGRAM_WS_URL}?{params}"
         headers = {"Authorization": f"Token {settings.deepgram_api_key}"}
 

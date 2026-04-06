@@ -9,7 +9,7 @@ def partial_analysis_messages(segments: list[str], specialization: str = "Genera
     transcript = "\n".join(segments)
     return [
         {"role": "system", "content": SYSTEM_BASE + f"\nDoctor specialization: {specialization}"},
-        {"role": "user", "content": f"""Analyze this partial clinical conversation transcript and extract key information so far.
+        {"role": "user", "content": f"""Analyze this partial clinical conversation transcript. Extract key clinical information identified so far.
 
 TRANSCRIPT:
 {transcript}
@@ -19,8 +19,18 @@ Output JSON with this exact structure:
   "key_points": ["string"],
   "symptoms": ["string"],
   "possible_diagnoses": ["string"],
-  "items_to_clarify": ["string"]
-}}"""},
+  "items_to_clarify": ["string"],
+  "differential_diagnoses": [
+    {{"diagnosis": "string", "rationale": "brief 1-sentence rationale"}}
+  ],
+  "red_flags": ["string"],
+  "suggested_workup": ["string"]
+}}
+
+For differential_diagnoses: list up to 3 most likely diagnoses with brief clinical rationale.
+For red_flags: list any alarming symptoms or findings that warrant urgent attention.
+For suggested_workup: list relevant investigations or tests to consider (e.g. "CBC", "chest X-ray").
+Use empty arrays [] if not enough information yet."""},
     ]
 
 
@@ -222,3 +232,195 @@ PAST ENCOUNTER SUMMARIES:
         messages.extend(history)
     messages.append({"role": "user", "content": question})
     return messages
+
+
+def billing_extraction_messages(transcript: str, summary: str) -> list[dict]:
+    return [
+        {"role": "system", "content": SYSTEM_BASE},
+        {"role": "user", "content": f"""Extract ICD-10 diagnosis codes and CPT procedure codes from this clinical encounter.
+
+CLINICAL SUMMARY:
+{summary}
+
+TRANSCRIPT:
+{transcript}
+
+Rules:
+- Only include codes that are clearly supported by the encounter content.
+- For ICD-10: use the most specific code available (e.g. "J18.9" not just "J18").
+- For CPT: include common E&M codes (99213, 99214 etc.) and any procedure codes if mentioned.
+- Confidence: "high" = explicitly stated, "medium" = strongly implied, "low" = possible but uncertain.
+
+Output JSON with this exact structure:
+{{
+  "billing_codes": [
+    {{
+      "code": "string",
+      "description": "string",
+      "type": "ICD-10" or "CPT",
+      "confidence": "high" | "medium" | "low"
+    }}
+  ]
+}}"""},
+    ]
+
+
+def patient_summary_messages(transcript: str, summary: str, medications: str) -> list[dict]:
+    return [
+        {"role": "system", "content": SYSTEM_BASE},
+        {"role": "user", "content": f"""Write a plain-English after-visit summary for the PATIENT (not the doctor).
+
+CLINICAL SUMMARY:
+{summary}
+
+TRANSCRIPT:
+{transcript}
+
+MEDICATIONS PRESCRIBED:
+{medications}
+
+Instructions:
+- Use simple, non-technical language a patient can understand.
+- Include: what was discussed, diagnosis in plain terms, medications with clear instructions, follow-up plan, warning signs to watch for.
+- Keep it warm, clear, and reassuring.
+- Format as flowing paragraphs (not clinical SOAP format).
+- Maximum 250 words.
+
+Output JSON:
+{{
+  "patient_summary": "plain English summary text"
+}}"""},
+    ]
+
+
+def letter_generation_messages(
+    letter_type: str,
+    transcript: str,
+    summary: str,
+    medications: str,
+    patient_name: str,
+    patient_age: str,
+    doctor_name: str,
+    specialization: str,
+    letterhead: str,
+) -> list[dict]:
+    type_instructions = {
+        "referral": "Write a formal referral letter to a specialist. Include: reason for referral, relevant clinical history, current medications, specific clinical question or request. Address it 'Dear Colleague,'.",
+        "sick_note": "Write a medical sick note / fit note. Include: patient name, diagnosis in simple terms, recommended rest period (estimate from context, e.g. 7-14 days), any work restrictions. Keep it brief and formal.",
+        "patient_instructions": "Write a patient instructions letter. Include: medication schedule with clear instructions, lifestyle advice from the encounter, follow-up appointment timing, and when to seek urgent medical attention.",
+    }
+    instruction = type_instructions.get(letter_type, type_instructions["referral"])
+
+    return [
+        {"role": "system", "content": SYSTEM_BASE},
+        {"role": "user", "content": f"""{instruction}
+
+PATIENT: {patient_name}, Age: {patient_age}
+DOCTOR: Dr. {doctor_name}, {specialization}
+LETTERHEAD: {letterhead}
+
+CLINICAL SUMMARY:
+{summary}
+
+TRANSCRIPT EXCERPT:
+{transcript[:2000]}
+
+MEDICATIONS:
+{medications}
+
+Output JSON:
+{{
+  "letter_html": "full letter as HTML with <p> tags, proper formatting. Include today's date at top."
+}}"""},
+    ]
+
+
+def drug_interaction_messages(medications: list[str]) -> list[dict]:
+    med_list = "\n".join(f"- {m}" for m in medications)
+    return [
+        {"role": "system", "content": SYSTEM_BASE},
+        {"role": "user", "content": f"""Check for clinically significant drug interactions between these medications:
+
+{med_list}
+
+For each interaction pair found, provide:
+- severity: "Minor" (monitor only), "Moderate" (may require dose adjustment), or "Major" (avoid combination / close monitoring essential)
+- mechanism: brief pharmacological explanation
+- management: what the doctor should do
+
+Only include interactions that are clinically relevant and evidence-based.
+If no significant interactions found, return an empty array.
+
+Output JSON:
+{{
+  "interactions": [
+    {{
+      "drug_a": "string",
+      "drug_b": "string",
+      "severity": "Minor" | "Moderate" | "Major",
+      "mechanism": "string",
+      "management": "string"
+    }}
+  ]
+}}"""},
+    ]
+
+
+def pre_visit_messages(
+    patient_name: str,
+    past_encounters: list[dict],
+) -> list[dict]:
+    encounter_text = ""
+    for i, enc in enumerate(past_encounters[:5], 1):
+        encounter_text += f"""
+--- Visit {i} ({enc.get('date', 'Unknown date')}) ---
+Chief Complaint: {enc.get('chief_complaint', 'N/A')}
+Assessment: {enc.get('assessment', 'N/A')}
+Plan: {enc.get('plan', 'N/A')}
+Diagnoses: {', '.join(enc.get('diagnosis', []))}
+Medications: {enc.get('medications', 'None recorded')}
+"""
+    return [
+        {"role": "system", "content": SYSTEM_BASE},
+        {"role": "user", "content": f"""Generate a pre-visit brief for an upcoming appointment with patient: {patient_name}
+
+PAST ENCOUNTER HISTORY:
+{encounter_text}
+
+Create a concise brief that helps the doctor quickly prepare for this visit.
+
+Output JSON:
+{{
+  "last_visit_summary": "1-2 sentence summary of most recent visit",
+  "active_diagnoses": ["string"],
+  "current_medications": ["string"],
+  "pending_follow_ups": ["string"],
+  "notable_flags": ["string"]
+}}
+
+Use empty arrays [] if no relevant data available."""},
+    ]
+
+
+def evidence_messages(diagnoses: list[str], specialization: str = "General Physician") -> list[dict]:
+    diag_text = "\n".join(f"- {d}" for d in diagnoses)
+    return [
+        {"role": "system", "content": SYSTEM_BASE},
+        {"role": "user", "content": f"""Based on these diagnoses, provide evidence-based clinical recommendations.
+
+DIAGNOSES:
+{diag_text}
+
+DOCTOR SPECIALIZATION: {specialization}
+
+Provide 2-4 evidence-based recommendations relevant to management, treatment, or monitoring.
+Reference NICE guidelines, USPSTF, or major clinical guidelines where applicable.
+Be concise and actionable.
+
+Output JSON:
+{{
+  "evidence": [
+    "Guideline recommendation with source (e.g. 'NICE CG192: Start ACE inhibitor for hypertension with CKD')"
+  ]
+}}"""},
+    ]

@@ -37,7 +37,7 @@ app.add_middleware(
 )
 
 # Register routers
-from app.routers import auth, patients, encounters, websocket, tasks, templates, reports, chat, dashboard, admin, settings
+from app.routers import auth, patients, encounters, websocket, tasks, templates, reports, chat, dashboard, admin, settings, letters
 
 app.include_router(auth.router)
 app.include_router(patients.router)
@@ -50,6 +50,7 @@ app.include_router(chat.router)
 app.include_router(dashboard.router)
 app.include_router(admin.router)
 app.include_router(settings.router)
+app.include_router(letters.router)
 
 
 @app.get("/health")

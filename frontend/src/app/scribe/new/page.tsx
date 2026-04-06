@@ -8,6 +8,7 @@ import { TranscriptPanel } from "@/components/scribe/TranscriptPanel";
 import { ClinicalSummaryPanel } from "@/components/scribe/ClinicalSummary";
 import { PrescriptionPanel } from "@/components/scribe/PrescriptionPanel";
 import { ContextChat } from "@/components/scribe/ContextChat";
+import { PreVisitBrief } from "@/components/scribe/PreVisitBrief";
 import { useEncounterStore } from "@/lib/store/encounterStore";
 import { useUIStore } from "@/lib/store/uiStore";
 import { Panel, Group as PanelGroup, Separator as PanelResizeHandle } from "react-resizable-panels";
@@ -27,6 +28,7 @@ function NewScribePageInner() {
   const { toggleChat, chatOpen } = useUIStore();
   const [templates, setTemplates] = useState<Template[]>([]);
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>("");
+  const [language, setLanguage] = useState<string>("en");
 
   useEffect(() => {
     listTemplates().then(setTemplates).catch(console.error);
@@ -69,18 +71,35 @@ function NewScribePageInner() {
             <PatientSearch />
           </div>
           {recordingStatus === "idle" && !resumeId && (
-            <select
-              className="text-sm border rounded-md px-2.5 py-1.5 bg-white text-gray-700 disabled:opacity-40 shrink-0 max-w-[180px]"
-              value={selectedTemplateId}
-              onChange={(e) => setSelectedTemplateId(e.target.value)}
-              disabled={!patient}
-              title="Select a note template"
-            >
-              <option value="">Default SOAP</option>
-              {templates.map((t) => (
-                <option key={t.id} value={t.id}>{t.name}</option>
-              ))}
-            </select>
+            <>
+              <select
+                className="text-sm border rounded-md px-2.5 py-1.5 bg-white text-gray-700 disabled:opacity-40 shrink-0 max-w-[180px]"
+                value={selectedTemplateId}
+                onChange={(e) => setSelectedTemplateId(e.target.value)}
+                disabled={!patient}
+                title="Select a note template"
+              >
+                <option value="">Default SOAP</option>
+                {templates.map((t) => (
+                  <option key={t.id} value={t.id}>{t.name}</option>
+                ))}
+              </select>
+              <select
+                className="text-sm border rounded-md px-2.5 py-1.5 bg-white text-gray-700 disabled:opacity-40 shrink-0"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value)}
+                disabled={!patient}
+                title="Session language"
+              >
+                <option value="en">English</option>
+                <option value="hi">Hindi</option>
+                <option value="ar">Arabic</option>
+                <option value="es">Spanish</option>
+                <option value="fr">French</option>
+                <option value="de">German</option>
+                <option value="zh">Mandarin</option>
+              </select>
+            </>
           )}
           <div className="flex items-center gap-2 ml-auto">
             {encounter && (
@@ -115,6 +134,9 @@ function NewScribePageInner() {
           </div>
         )}
 
+        {/* Pre-visit brief when patient is selected */}
+        {patient && <PreVisitBrief patientId={patient.id} />}
+
         {/* Main two-column layout */}
         <PanelGroup orientation="horizontal" className="flex-1 overflow-hidden min-h-0">
 
@@ -126,7 +148,7 @@ function NewScribePageInner() {
             <div className="flex-1 overflow-y-auto px-6 pb-2 min-h-0">
               <TranscriptPanel />
             </div>
-            <RecordingControls templateId={selectedTemplateId || undefined} />
+            <RecordingControls templateId={selectedTemplateId || undefined} language={language} />
           </Panel>
 
           <PanelResizeHandle className="w-1.5 bg-gray-100 hover:bg-gray-300 transition-colors cursor-col-resize" />

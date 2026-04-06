@@ -21,13 +21,14 @@ async def connect_db():
     from app.models.document import Document
     from app.models.template import Template
     from app.models.refresh_token import RefreshToken
+    from app.models.letter import Letter
 
     await init_beanie(
         database=db,
         document_models=[
             Doctor, Patient, Encounter, TranscriptSegment,
             ClinicalSummary, Prescription, Report, Task,
-            Document, Template, RefreshToken,
+            Document, Template, RefreshToken, Letter,
         ],
     )
 

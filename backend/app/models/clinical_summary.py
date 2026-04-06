@@ -16,6 +16,22 @@ class Vitals(BaseModel):
     respiratory_rate: Optional[str] = None
 
 
+class BillingCode(BaseModel):
+    code: str
+    description: str
+    type: str  # "ICD-10" or "CPT"
+    confidence: str  # "high" | "medium" | "low"
+    accepted: bool = True
+
+
+class DrugInteraction(BaseModel):
+    drug_a: str
+    drug_b: str
+    severity: str  # "Minor" | "Moderate" | "Major"
+    mechanism: str
+    management: str
+
+
 class ClinicalSummary(Document):
     encounter_id: PydanticObjectId
     chief_complaint: Optional[str] = None
@@ -26,6 +42,12 @@ class ClinicalSummary(Document):
     summary_text: str = ""
     vitals: Optional[Vitals] = None
     diagnosis: List[str] = Field(default_factory=list)
+    billing_codes: List[BillingCode] = Field(default_factory=list)
+    patient_summary: Optional[str] = None  # plain-English after-visit summary
+    drug_interactions: List[DrugInteraction] = Field(default_factory=list)
+    attested: bool = False
+    attested_at: Optional[datetime] = None
+    evidence: List[str] = Field(default_factory=list)  # evidence-based suggestions
     created_at: datetime = Field(default_factory=datetime.utcnow)
 
     class Settings:
