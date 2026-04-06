@@ -24,6 +24,7 @@ interface EncounterState {
   setEncounter: (e: Encounter | null) => void;
   setConnected: (v: boolean) => void;
   setInterim: (text: string) => void;
+  setSegments: (segs: TranscriptSegment[]) => void;
   addSegment: (seg: TranscriptSegment) => void;
   setPartialAnalysis: (a: PartialAnalysis) => void;
   applyFinalAnalysis: (data: FinalAnalysis) => void;
@@ -55,6 +56,7 @@ export const useEncounterStore = create<EncounterState>((set) => ({
   setEncounter: (encounter) => set({ encounter }),
   setConnected: (isConnected) => set({ isConnected }),
   setInterim: (interimText) => set({ interimText }),
+  setSegments: (segments) => set({ segments }),
 
   addSegment: (seg) => set((state) => ({
     segments: [...state.segments, seg],

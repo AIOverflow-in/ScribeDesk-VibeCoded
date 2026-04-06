@@ -16,14 +16,14 @@ import { Button } from "@/components/ui/button";
 import { MessageCircle, ArrowLeft, ExternalLink } from "lucide-react";
 import { Template } from "@/lib/types";
 import { listTemplates } from "@/lib/api/templates";
-import { getEncounter } from "@/lib/api/encounters";
+import { getEncounterDetail } from "@/lib/api/encounters";
 import { getPatient } from "@/lib/api/patients";
 
 function NewScribePageInner() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const resumeId = searchParams.get("resume");
-  const { encounter, patient, reset, setEncounter, setPatient, setRecordingStatus } = useEncounterStore();
+  const { encounter, patient, reset, setEncounter, setPatient, setSegments, setRecordingStatus } = useEncounterStore();
   const { recordingStatus } = useEncounterStore();
   const { toggleChat, chatOpen } = useUIStore();
   const [templates, setTemplates] = useState<Template[]>([]);
@@ -34,12 +34,13 @@ function NewScribePageInner() {
     listTemplates().then(setTemplates).catch(console.error);
 
     if (resumeId) {
-      // Resuming an existing paused/active encounter — load it without resetting
-      getEncounter(resumeId)
-        .then(async (enc) => {
-          setEncounter(enc);
+      // Resuming an existing paused/active encounter — load encounter + prior segments
+      getEncounterDetail(resumeId)
+        .then(async (detail) => {
+          setEncounter(detail.encounter);
+          setSegments(detail.segments);
           setRecordingStatus("paused");
-          const p = await getPatient(enc.patient_id);
+          const p = await getPatient(detail.encounter.patient_id);
           setPatient(p);
         })
         .catch(() => {
