@@ -18,18 +18,25 @@ async def _idle_cleanup_loop() -> None:
             logging.getLogger(__name__).error(f"Idle processor cleanup error: {e}")
 
 
+async def _run_seeds() -> None:
+    """Run seed scripts in the background so they don't block server startup."""
+    try:
+        from scripts.seed_templates import seed as seed_templates
+        from scripts.seed_admin import seed as seed_admin
+        from scripts.seed_demo_data import seed as seed_demo_data
+        await seed_templates()
+        await seed_admin()
+        await seed_demo_data()
+    except Exception as e:
+        import logging
+        logging.getLogger(__name__).error(f"Seed error: {e}")
+
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup
+    # Startup — connect DB first, then kick off seeds and cleanup as background tasks
     await connect_db()
-    # Seed data
-    from scripts.seed_templates import seed as seed_templates
-    from scripts.seed_admin import seed as seed_admin
-    from scripts.seed_demo_data import seed as seed_demo_data
-    await seed_templates()
-    await seed_admin()
-    await seed_demo_data()
-    # Background tasks
+    asyncio.create_task(_run_seeds())
     cleanup_task = asyncio.create_task(_idle_cleanup_loop())
     yield
     # Shutdown
