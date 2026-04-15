@@ -24,6 +24,7 @@ async def connect_db():
     from app.models.refresh_token import RefreshToken
     from app.models.letter import Letter
     from app.models.audit_log import AuditLog
+    from app.models.blog import BlogPost
 
     await init_beanie(
         database=db,
@@ -31,6 +32,7 @@ async def connect_db():
             Doctor, Patient, Encounter, TranscriptSegment,
             ClinicalSummary, Prescription, Report, Task,
             Document, Template, RefreshToken, Letter, AuditLog,
+            BlogPost,
         ],
     )
 

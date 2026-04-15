@@ -10,6 +10,7 @@ export default function Footer() {
         </div>
 
         <div className="flex items-center gap-6 text-sm text-white/40">
+          <a href="/blog" className="hover:text-white transition-colors">Blog</a>
           <a href="#" className="hover:text-white transition-colors">Privacy</a>
           <a href="#" className="hover:text-white transition-colors">Terms</a>
           <a href="mailto:hello@scribedesk.app" className="hover:text-white transition-colors">Contact</a>

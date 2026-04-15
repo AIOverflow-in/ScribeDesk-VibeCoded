@@ -1,9 +1,14 @@
 import asyncio
+import logging
 from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from apscheduler.schedulers.asyncio import AsyncIOScheduler
+from apscheduler.triggers.cron import CronTrigger
 from app.config import settings
 from app.database import connect_db, close_db
+
+logger = logging.getLogger(__name__)
 
 
 async def _idle_cleanup_loop() -> None:
@@ -14,8 +19,7 @@ async def _idle_cleanup_loop() -> None:
         try:
             await cleanup_idle_processors()
         except Exception as e:
-            import logging
-            logging.getLogger(__name__).error(f"Idle processor cleanup error: {e}")
+            logger.error(f"Idle processor cleanup error: {e}")
 
 
 async def _run_seeds() -> None:
@@ -28,18 +32,41 @@ async def _run_seeds() -> None:
         await seed_admin()
         await seed_demo_data()
     except Exception as e:
-        import logging
-        logging.getLogger(__name__).error(f"Seed error: {e}")
+        logger.error(f"Seed error: {e}")
+
+
+async def _scheduled_blog_generation() -> None:
+    """APScheduler job: generate one SEO blog post (Mon/Wed/Fri 09:00 UTC)."""
+    from app.services.blog_generator import generate_blog_post
+    try:
+        post = await generate_blog_post()
+        logger.info(f"Scheduled blog post published: {post.slug}")
+    except Exception as e:
+        logger.error(f"Scheduled blog generation failed: {e}")
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Startup — connect DB first, then kick off seeds and cleanup as background tasks
+    # Startup
     await connect_db()
     asyncio.create_task(_run_seeds())
     cleanup_task = asyncio.create_task(_idle_cleanup_loop())
+
+    scheduler = AsyncIOScheduler(timezone="UTC")
+    scheduler.add_job(
+        _scheduled_blog_generation,
+        CronTrigger(day_of_week="mon,wed,fri", hour=9, minute=0),
+        id="blog_generation",
+        replace_existing=True,
+        misfire_grace_time=3600,
+    )
+    scheduler.start()
+    logger.info("Blog scheduler started — runs Mon/Wed/Fri 09:00 UTC")
+
     yield
+
     # Shutdown
+    scheduler.shutdown(wait=False)
     cleanup_task.cancel()
     await close_db()
 
@@ -60,7 +87,7 @@ app.add_middleware(
 )
 
 # Register routers
-from app.routers import auth, patients, encounters, websocket, tasks, templates, reports, chat, dashboard, admin, settings, letters
+from app.routers import auth, patients, encounters, websocket, tasks, templates, reports, chat, dashboard, admin, settings, letters, blogs
 
 app.include_router(auth.router)
 app.include_router(patients.router)
@@ -74,6 +101,7 @@ app.include_router(dashboard.router)
 app.include_router(admin.router)
 app.include_router(settings.router)
 app.include_router(letters.router)
+app.include_router(blogs.router)
 
 
 @app.get("/health")

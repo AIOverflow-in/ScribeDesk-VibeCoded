@@ -402,6 +402,65 @@ Use empty arrays [] if no relevant data available."""},
     ]
 
 
+def blog_generation_messages(existing_titles: list[str]) -> list[dict]:
+    """Build prompt for automated SEO blog post generation."""
+    BLOG_SYSTEM = (
+        "You are an expert medical content writer and SEO strategist for ScribeDesk, "
+        "an AI clinical scribe platform used by GPs, hospital consultants, and clinical "
+        "administrators in the UK and US. You write authoritative, informative articles "
+        "that rank highly on Google. Output ONLY valid JSON — no commentary, no markdown fences."
+    )
+
+    titles_block = "\n".join(f"- {t}" for t in existing_titles) if existing_titles else "None yet"
+
+    return [
+        {"role": "system", "content": BLOG_SYSTEM},
+        {"role": "user", "content": f"""Generate one complete SEO-optimised blog post for ScribeDesk.
+
+ALREADY PUBLISHED — do NOT repeat these topics:
+{titles_block}
+
+TARGET AUDIENCE: GPs, hospital consultants, junior doctors, clinical administrators (UK & US).
+
+TOPIC SELECTION — pick the single highest-value topic NOT already covered above.
+Prioritise topics with strong organic search intent. Focus areas:
+- AI medical scribing / ambient documentation
+- SOAP note automation for doctors
+- ICD-10 / CPT billing code automation
+- Clinical documentation burden and physician burnout
+- HIPAA / GDPR compliance in healthcare AI
+- EHR workflow integration with AI
+- GPT and large language models in clinical settings
+- NHS digital transformation / US healthcare AI adoption
+- Drug interaction checking / prescription automation
+- Real-time transcription in clinical settings
+
+POST REQUIREMENTS:
+- 900–1200 words total
+- Use ONLY these HTML tags: <h2>, <h3>, <p>, <ul>, <li> — NO <div>, NO inline styles, NO CSS classes
+- Use proper heading hierarchy (h2 for main sections, h3 for subsections)
+- Include 2–3 natural internal links within the article body using these exact hrefs:
+    href="https://scribedesk.app#features"
+    href="https://scribedesk.app#how-it-works"
+    href="https://scribedesk.app#demo"
+- Final section must include a clear call-to-action to request a demo at https://scribedesk.app#demo
+- meta_description: exactly 150–160 characters including the target keyword
+- excerpt: 2–3 compelling sentences suitable for a blog listing card
+- tags: 3–5 relevant topic tags (lowercase, hyphen-separated where multi-word)
+- target_keyword: the primary 3–5 word search phrase this post targets
+
+Output EXACTLY this JSON structure:
+{{
+  "title": "compelling keyword-rich headline (under 70 characters for SEO)",
+  "target_keyword": "primary search phrase (3–5 words)",
+  "meta_description": "exactly 150–160 chars including target keyword",
+  "excerpt": "2–3 sentence hook for listing cards",
+  "tags": ["tag-one", "tag-two", "tag-three"],
+  "content_html": "complete article HTML — h2/h3/p/ul/li tags only"
+}}"""},
+    ]
+
+
 def evidence_messages(diagnoses: list[str], specialization: str = "General Physician") -> list[dict]:
     diag_text = "\n".join(f"- {d}" for d in diagnoses)
     return [
