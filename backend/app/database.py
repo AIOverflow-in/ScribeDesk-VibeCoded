@@ -1,3 +1,4 @@
+import certifi
 from motor.motor_asyncio import AsyncIOMotorClient
 from beanie import init_beanie
 from app.config import settings
@@ -7,7 +8,7 @@ _client: AsyncIOMotorClient | None = None
 
 async def connect_db():
     global _client
-    _client = AsyncIOMotorClient(settings.mongodb_url)
+    _client = AsyncIOMotorClient(settings.mongodb_url, tlsCAFile=certifi.where())
     db = _client[settings.mongodb_db_name]
 
     from app.models.doctor import Doctor
