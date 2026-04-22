@@ -53,6 +53,7 @@ function RecordDemo() {
               height: `${h}%`,
               animation: `wave-bar ${0.6 + (i % 5) * 0.1}s ease-in-out infinite`,
               animationDelay: `${(i * 0.07).toFixed(2)}s`,
+              willChange: "transform",
             }}
           />
         ))}
@@ -258,8 +259,8 @@ export default function HowItWorks() {
                 ))}
               </div>
 
-              {/* Animated demo */}
-              <div className="border border-black/10 p-6 min-h-[260px] flex flex-col justify-start">
+              {/* Animated demo — fixed height prevents layout reflow on mobile */}
+              <div className="border border-black/10 p-6 h-[280px] overflow-hidden flex flex-col justify-start">
                 {/* Window chrome */}
                 <div className="flex items-center gap-1.5 mb-5 pb-4 border-b border-black/10">
                   <span className="w-2.5 h-2.5 rounded-full bg-black/10" />
