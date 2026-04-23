@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -39,6 +39,53 @@ export default function DemoForm() {
   const [submitted, setSubmitted] = useState(false);
   const [serverError, setServerError] = useState<string | null>(null);
 
+  // Engagement tracking refs
+  const pageLoadTime = useRef<number>(0);
+  const maxScrollPct = useRef<number>(0);
+  const sectionsViewed = useRef<string[]>([]);
+  const visitCount = useRef<number>(1);
+
+  useEffect(() => {
+    pageLoadTime.current = performance.now();
+
+    // Scroll depth
+    const onScroll = () => {
+      const docHeight = document.documentElement.scrollHeight - window.innerHeight;
+      if (docHeight > 0) {
+        const pct = Math.round((window.scrollY / docHeight) * 100);
+        maxScrollPct.current = Math.max(maxScrollPct.current, pct);
+      }
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+
+    // Section visibility
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const id = (entry.target as HTMLElement).id;
+          if (entry.isIntersecting && id && !sectionsViewed.current.includes(id)) {
+            sectionsViewed.current.push(id);
+          }
+        });
+      },
+      { threshold: 0.3 }
+    );
+    document.querySelectorAll("section[id]").forEach((s) => observer.observe(s));
+
+    // Visit count
+    try {
+      const stored = localStorage.getItem("sd_visits");
+      const count = stored ? parseInt(stored) + 1 : 1;
+      localStorage.setItem("sd_visits", count.toString());
+      visitCount.current = count;
+    } catch {}
+
+    return () => {
+      window.removeEventListener("scroll", onScroll);
+      observer.disconnect();
+    };
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -47,11 +94,39 @@ export default function DemoForm() {
 
   async function onSubmit(data: FormData) {
     setServerError(null);
+
+    const params = new URLSearchParams(window.location.search);
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const conn = (navigator as any).connection;
+    const enrichment = {
+      timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
+      browserLanguage: navigator.language,
+      referrer: document.referrer || undefined,
+      utmSource: params.get("utm_source") ?? undefined,
+      utmMedium: params.get("utm_medium") ?? undefined,
+      utmCampaign: params.get("utm_campaign") ?? undefined,
+      utmTerm: params.get("utm_term") ?? undefined,
+      utmContent: params.get("utm_content") ?? undefined,
+      gclid: params.get("gclid") ?? undefined,
+      fbclid: params.get("fbclid") ?? undefined,
+      msclkid: params.get("msclkid") ?? undefined,
+      timeOnPageSecs: Math.round((performance.now() - pageLoadTime.current) / 1000),
+      maxScrollPct: maxScrollPct.current,
+      sectionsViewed: sectionsViewed.current,
+      visitCount: visitCount.current,
+      screenWidth: window.screen.width,
+      screenHeight: window.screen.height,
+      devicePixelRatio: window.devicePixelRatio,
+      connectionType: conn?.effectiveType ?? undefined,
+      saveData: conn?.saveData ?? undefined,
+      prefersDarkMode: window.matchMedia("(prefers-color-scheme: dark)").matches,
+    };
+
     try {
       const res = await fetch("/api/demo-request", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, ...enrichment }),
       });
       if (!res.ok) {
         const json = await res.json().catch(() => ({}));
