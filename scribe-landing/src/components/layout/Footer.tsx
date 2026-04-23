@@ -17,7 +17,7 @@ export default function Footer() {
         </div>
 
         <div className="text-white/30 text-xs">
-          © {new Date().getFullYear()} ScribeDesk
+          © {new Date().getFullYear()} ScribeDesk. All rights reserved.
         </div>
       </div>
     </footer>
